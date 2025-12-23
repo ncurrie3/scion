@@ -3,6 +3,7 @@
 
 REPO_ROOT=$(pwd)
 TEST_DIR="${REPO_ROOT}/../qa-scion"
+SCION_GROVE="${TEST_DIR}/.scion"
 
 # Load the test key
 if [ ! -f "${REPO_ROOT}/TEST_GEMINI_KEY" ]; then
@@ -16,14 +17,12 @@ if [ ! -d "${TEST_DIR}" ]; then
     exit 1
 fi
 
-cd "${TEST_DIR}"
-
 echo "=== Testing Case A: Environment Variable ==="
 export GEMINI_API_KEY="${TEST_KEY}"
-./scion start "test auth" --name qa-auth-env
+scion -g "$SCION_GROVE" start qa-auth-env "test auth"
 
 # Verify using container list (assuming Apple container on macOS)
-if ./scion list | grep -q "qa-auth-env"; then
+if scion -g "$SCION_GROVE" list | grep -q "qa-auth-env"; then
     echo "Agent qa-auth-env started."
     # Check if env var is in the container list output
     if container list -a --format json | grep -q "GEMINI_API_KEY=${TEST_KEY}"; then
@@ -37,12 +36,16 @@ else
     exit 1
 fi
 
+scion -g "$SCION_GROVE" stop qa-auth-env --rm
+
 echo "=== Testing Case B: --no-auth flag ==="
 unset GEMINI_API_KEY
-./scion start "test no auth" --name qa-no-auth --no-auth
+scion -g "$SCION_GROVE" start qa-no-auth "test no auth" --no-auth
 if container list -a --format json | grep "qa-no-auth" -A 50 | grep -q "GEMINI_API_KEY=${TEST_KEY}"; then
     echo "FAILURE: GEMINI_API_KEY found when --no-auth was used."
     exit 1
 else
     echo "SUCCESS: --no-auth respected."
 fi
+
+scion -g "$SCION_GROVE" stop qa-no-auth --rm
