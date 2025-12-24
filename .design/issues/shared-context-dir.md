@@ -1,0 +1,11 @@
+## Feature request: shared context dir
+
+have a grove level shared context directory that agents can use to share information and status between themselves.
+
+'./scion/shared_context'
+
+mounted in container to /shared_context
+
+passed to the agent with --include-directories
+
+potentially have a hook that periodically looks for additions to this, and reviews context for relvance and injects it into agent context
