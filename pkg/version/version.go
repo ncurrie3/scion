@@ -2,6 +2,7 @@ package version
 
 import (
 	"fmt"
+	"os"
 	"runtime/debug"
 )
 
@@ -49,6 +50,15 @@ func Get() string {
 
 	if commit == "" {
 		commit = "unknown"
+	}
+
+	// If buildTime is not set via ldflags, try to get the binary's modification time.
+	if buildTime == "" {
+		if exe, err := os.Executable(); err == nil {
+			if info, err := os.Stat(exe); err == nil {
+				buildTime = info.ModTime().Format("2006-01-02 15:04:05")
+			}
+		}
 	}
 
 	if buildTime == "" {
