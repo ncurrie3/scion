@@ -120,8 +120,16 @@ func ProvisionAgent(ctx context.Context, agentName string, templateName string, 
 	finalScionCfg := &api.ScionConfig{}
 
 	for _, tpl := range chain {
-		if err := util.CopyDir(tpl.Path, agentHome); err != nil {
-			return "", "", nil, fmt.Errorf("failed to copy template %s: %w", tpl.Name, err)
+		templateHome := filepath.Join(tpl.Path, "home")
+		if info, err := os.Stat(templateHome); err == nil && info.IsDir() {
+			if err := util.CopyDir(templateHome, agentHome); err != nil {
+				return "", "", nil, fmt.Errorf("failed to copy template home %s: %w", tpl.Name, err)
+			}
+		} else {
+			// Fallback for older templates without a 'home' directory
+			if err := util.CopyDir(tpl.Path, agentHome); err != nil {
+				return "", "", nil, fmt.Errorf("failed to copy template %s: %w", tpl.Name, err)
+			}
 		}
 
 		// Load scion-agent.json from this template and merge it

@@ -3,9 +3,19 @@ package agent
 import (
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 )
+
+func runCmd(t *testing.T, dir string, name string, args ...string) {
+	t.Helper()
+	cmd := exec.Command(name, args...)
+	cmd.Dir = dir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("command %s %v in %s failed: %v\nOutput: %s", name, args, dir, err, string(output))
+	}
+}
 
 func TestProvisionAgentHomeCopy(t *testing.T) {
 	tmpDir := t.TempDir()
@@ -16,26 +26,24 @@ func TestProvisionAgentHomeCopy(t *testing.T) {
 	defer os.Chdir(oldWd)
 
 	// Initialize dummy git repo
-	runCmd(t, "git", "init")
-	runCmd(t, "git", "config", "user.email", "test@example.com")
-	runCmd(t, "git", "config", "user.name", "Test User")
+	runCmd(t, tmpDir, "git", "init")
+	runCmd(t, tmpDir, "git", "config", "user.email", "test@example.com")
+	runCmd(t, tmpDir, "git", "config", "user.name", "Test User")
 	os.WriteFile(filepath.Join(tmpDir, "initial"), []byte("initial"), 0644)
-	runCmd(t, "git", "add", "initial")
-	runCmd(t, "git", "commit", "-m", "initial commit")
+	runCmd(t, tmpDir, "git", "add", "initial")
+	runCmd(t, tmpDir, "git", "commit", "-m", "initial commit")
 
 	// Mock HOME for global settings and templates
 	originalHome := os.Getenv("HOME")
 	defer os.Setenv("HOME", originalHome)
 	os.Setenv("HOME", tmpDir)
 
-	projectDir := filepath.Join(tmpDir, "project")
-	projectScionDir := filepath.Join(projectDir, ".scion")
+	projectScionDir := filepath.Join(tmpDir, ".scion")
 	
 	// Add .scion/agents/ to gitignore to satisfy ProvisionAgent's security check
-	os.MkdirAll(projectDir, 0755)
-	os.WriteFile(filepath.Join(projectDir, ".gitignore"), []byte(".scion/agents/\n"), 0644)
-	runCmd(t, "git", "add", ".gitignore")
-	runCmd(t, "git", "commit", "-m", "add gitignore")
+	os.WriteFile(filepath.Join(tmpDir, ".gitignore"), []byte(".scion/agents/\n"), 0644)
+	runCmd(t, tmpDir, "git", "add", ".gitignore")
+	runCmd(t, tmpDir, "git", "commit", "-m", "add gitignore")
 
 	os.MkdirAll(filepath.Join(projectScionDir, "templates", "test-tpl", "home"), 0755)
 
@@ -72,19 +80,3 @@ func TestProvisionAgentHomeCopy(t *testing.T) {
 		t.Errorf("expected scion-agent.json NOT to be copied to agent home when home/ directory exists")
 	}
 }
-
-func runCmd(t *testing.T, name string, args ...string) {
-	t.Helper()
-	cmd := exec.Command(name, args...)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("command %s %v failed: %v\nOutput: %s", name, args, err, string(output))
-	}
-}
-
-import (
-	"context"
-	"os"
-	"os/exec"
-	"path/filepath"
-	"testing"
-)
