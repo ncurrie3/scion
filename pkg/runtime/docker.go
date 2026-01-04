@@ -125,28 +125,35 @@ func (r *DockerRuntime) GetLogs(ctx context.Context, id string) (string, error) 
 func (r *DockerRuntime) Attach(ctx context.Context, id string) error {
 	// We need to find the container first to handle names properly
 	agents, err := r.List(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to list containers: %w", err)
+	}
+
 	var agent *api.AgentInfo
-	if err == nil {
-		for _, a := range agents {
-			// Match by full ID, short ID (12 chars), or name (with or without leading slash)
-			if a.ID == id || (len(id) >= 12 && strings.HasPrefix(a.ID, id)) || (len(a.ID) >= 12 && strings.HasPrefix(id, a.ID)) ||
-				a.Name == id || a.Name == "/"+id || strings.TrimPrefix(a.Name, "/") == id {
-				agent = &a
-				break
-			}
+	for _, a := range agents {
+		// Match by full ID, short ID (12 chars), or name (with or without leading slash)
+		if a.ID == id || (len(id) >= 12 && strings.HasPrefix(a.ID, id)) || (len(a.ID) >= 12 && strings.HasPrefix(id, a.ID)) ||
+			a.Name == id || a.Name == "/"+id || strings.TrimPrefix(a.Name, "/") == id {
+			agent = &a
+			break
 		}
 	}
 
-	if agent != nil && agent.Labels["scion.tmux"] == "true" {
+	if agent == nil {
+		return fmt.Errorf("agent '%s' container not found. It may have exited and been removed.", id)
+	}
+
+	// Check if running
+	status := strings.ToLower(agent.ContainerStatus)
+	if !strings.HasPrefix(status, "up") && status != "running" {
+		return fmt.Errorf("agent '%s' is not running (status: %s). Use 'scion start %s' to resume it.", id, agent.ContainerStatus, id)
+	}
+
+	if agent.Labels["scion.tmux"] == "true" {
 		return runInteractiveCommand(r.Command, "exec", "-it", agent.ID, "tmux", "attach", "-t", "scion")
 	}
 
-	target := id
-	if agent != nil {
-		target = agent.ID
-	}
-
-	return runInteractiveCommand(r.Command, "attach", target)
+	return runInteractiveCommand(r.Command, "attach", agent.ID)
 }
 
 func (r *DockerRuntime) ImageExists(ctx context.Context, image string) (bool, error) {

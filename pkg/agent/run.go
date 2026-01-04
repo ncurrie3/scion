@@ -19,7 +19,7 @@ func (m *AgentManager) Start(ctx context.Context, opts api.StartOptions) (*api.A
 	agents, err := m.Runtime.List(ctx, nil)
 	if err == nil {
 		for _, a := range agents {
-			if a.ID == opts.Name || a.Name == opts.Name {
+			if a.ID == opts.Name || a.Name == opts.Name || strings.TrimPrefix(a.Name, "/") == opts.Name {
 				status := strings.ToLower(a.ContainerStatus)
 				isRunning := strings.HasPrefix(status, "up") || status == "running"
 				if isRunning {
@@ -56,13 +56,15 @@ func (m *AgentManager) Start(ctx context.Context, opts api.StartOptions) (*api.A
 	promptFileContent := ""
 	if content, err := os.ReadFile(promptFile); err == nil {
 		promptFileContent = strings.TrimSpace(string(content))
+	} else if !os.IsNotExist(err) {
+		return nil, fmt.Errorf("failed to read prompt file %s: %w", promptFile, err)
 	}
 
 	task := opts.Task
 	// If we are explicitly attaching or resuming, we allow starting without a task
 	isAttaching := opts.Detached != nil && !*opts.Detached
 	if task == "" && promptFileContent == "" && !isAttaching && !opts.Resume {
-		return nil, fmt.Errorf("no task provided: prompt.md is empty and no task was given in options")
+		return nil, fmt.Errorf("no task provided: prompt.md is empty at %s and no task was given in options", promptFile)
 	}
 
 	if task != "" && promptFileContent != "" && task != promptFileContent {

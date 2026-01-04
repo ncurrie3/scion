@@ -437,6 +437,29 @@ func (r *KubernetesRuntime) Attach(ctx context.Context, id string) error {
 	namespace := r.DefaultNamespace
 	podName := id
 
+	// Find pod first to check status
+	agents, err := r.List(ctx, map[string]string{"scion.name": id})
+	if err != nil {
+		return fmt.Errorf("failed to list pods: %w", err)
+	}
+
+	var agent *api.AgentInfo
+	for _, a := range agents {
+		if a.ID == id || a.Name == id {
+			agent = &a
+			break
+		}
+	}
+
+	if agent == nil {
+		return fmt.Errorf("agent '%s' pod not found. It may have been deleted.", id)
+	}
+
+	// For Kubernetes, we want to ensure it is in Running phase
+	if !strings.EqualFold(agent.ContainerStatus, string(corev1.PodRunning)) {
+		return fmt.Errorf("agent '%s' is not running (status: %s). Use 'scion start %s' to resume it.", id, agent.ContainerStatus, id)
+	}
+
 	fmt.Printf("Attaching to pod '%s' (use Ctrl-P, Ctrl-Q to detach)...\n", podName)
 
 	req := r.Client.Clientset.CoreV1().RESTClient().Post().

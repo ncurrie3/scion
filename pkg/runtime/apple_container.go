@@ -123,12 +123,30 @@ func (r *AppleContainerRuntime) GetLogs(ctx context.Context, id string) (string,
 
 func (r *AppleContainerRuntime) Attach(ctx context.Context, id string) error {
 	// 1. Find container to check for tmux label
-	agents, err := r.List(ctx, map[string]string{"scion.name": id})
-	if err != nil || len(agents) == 0 {
-		return fmt.Errorf("apple container runtime does not support 'attach' command directly")
+	agents, err := r.List(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to list containers: %w", err)
 	}
 
-	a := agents[0]
+	var a *api.AgentInfo
+	for _, agent := range agents {
+		// Match by full ID, or name
+		if agent.ID == id || agent.Name == id || strings.TrimPrefix(agent.Name, "/") == id {
+			a = &agent
+			break
+		}
+	}
+
+	if a == nil {
+		return fmt.Errorf("agent '%s' container not found. It may have exited and been removed.", id)
+	}
+
+	// Check if running
+	status := strings.ToLower(a.ContainerStatus)
+	if !strings.HasPrefix(status, "up") && status != "running" {
+		return fmt.Errorf("agent '%s' is not running (status: %s). Use 'scion start %s' to resume it.", id, a.ContainerStatus, id)
+	}
+
 	if a.Labels["scion.tmux"] == "true" {
 		// container exec -it <id> tmux attach -t scion
 		return runInteractiveCommand(r.Command, "exec", "-it", a.ID, "tmux", "attach", "-t", "scion")
