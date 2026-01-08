@@ -13,7 +13,7 @@ if command -v scion &> /dev/null; then
     AGENTS=$(scion -g "${TEST_DIR}/.scion" list | tail -n +2 | awk '{print $1}')
     for agent in $AGENTS; do
         if [ -n "$agent" ]; then
-            scion -g "${TEST_DIR}/.scion" stop "$agent" --rm
+            scion -g "${TEST_DIR}/.scion" rm "$agent"
         fi
     done
 fi

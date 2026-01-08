@@ -2,6 +2,8 @@
 
 Scion is a container-based orchestration tool designed to manage concurrent LLM-based code agents across your local machine and remote clusters. It enables developers to run specialized sub-agents with isolated identities, credentials, and workspaces, allowing for parallel execution of tasks such as coding, auditing, and testing.
 
+**NOTE** Currently this project is early and experimental. Most of the concepts are starting to settle in, but anything might break or change and the future is not set.
+
 ## Key Features
 
 - **Parallelism**: Run multiple agents concurrently as independent processes either locally or remote.
