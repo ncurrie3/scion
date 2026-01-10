@@ -55,3 +55,23 @@ The OpenCode TUI.
 ### Known Limitations
 - **Auth File Copy**: The `auth.json` file is copied only when the agent is **created**. If you update your host credentials, you may need to manually update the file in the agent or recreate the agent.
 - **No Hook support** opencode does not have analogous hook support, and so will require use of plugin system to notify the scion orchestrator.
+
+---
+
+## 4. Codex (`codex`)
+
+A harness for the OpenAI Codex CLI.
+
+### Authentication
+- **API Keys**: Respects `OPENAI_API_KEY` or `CODEX_API_KEY` environment variables.
+- **Auth File**: Codex uses an `auth.json` file located at `~/.codex/auth.json`.
+- **Propagation**: If you have `~/.codex/auth.json` on your host machine, Scion copies it to the agent's home directory upon creation.
+
+### Configuration
+- **Config File**: `~/.codex/config.toml`.
+- **Default Flags**: Runs with `--yolo` enabled by default.
+- **Resume Support**: Automatically uses the `resume` positional argument to continue existing sessions.
+
+### Known Limitations
+- **Auth File Copy**: The `auth.json` file is only copied when the agent is **created**.
+- **Model selection**: Specific model selection must currently be handled via the `config.toml` or environment variables within the agent.

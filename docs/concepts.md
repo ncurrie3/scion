@@ -16,16 +16,16 @@ A **Profile** defines a complete execution environment by binding a specific **R
 - They are defined in the global or grove `settings.json`.
 
 ### Harness
-A **Harness** adapts a specific underlying LLM tool or agent software (like Gemini CLI or Claude Code) into the Scion ecosystem.
+A **Harness** adapts a specific underlying LLM tool or agent software (like Gemini CLI, Claude Code, or OpenAI Codex) into the Scion ecosystem.
 - It handles the specifics of provisioning, configuration, and execution for that particular tool inside an OCI container.
-- Examples: `GeminiCLI`, `ClaudeCode`.
+- Examples: `GeminiCLI`, `ClaudeCode`, `Codex`, `OpenCode`.
 - The harness ensures that the generic Scion commands (`start`, `stop`, `attach`, `resume`) work consistently regardless of the underlying agent software.
 
 ### Template
 A **Template** is a blueprint for creating an agent. It defines the base configuration, system prompt, and tools that an agent will use.
 - Templates are stored in `.scion/templates/` and can be project-level or global (`~/.scion/templates/`).
 - Users can manage templates using the `scion templates` command suite (`create`, `clone`, `list`, `show`, `update-default`).
-- Scion comes with default templates for supported harnesses (e.g., `gemini`, `claude`), but users can create custom templates for specialized roles (e.g., "Security Auditor", "React Specialist").
+- Scion comes with default templates for supported harnesses (e.g., `gemini`, `claude`, `opencode`, `codex`), but users can create custom templates for specialized roles (e.g., "Security Auditor", "React Specialist").
 
 
 ### Runtime

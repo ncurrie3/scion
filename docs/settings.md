@@ -52,9 +52,9 @@ Runtimes define *where* the agent containers are executed (e.g., local Docker, K
 ```
 
 ### 2. Harnesses
-Harnesses define *what* software runs inside the container (e.g., Gemini CLI, Claude Code).
+Harnesses define *what* software runs inside the container (e.g., Gemini CLI, Claude Code, OpenAI Codex).
 
--   **Key**: A unique name for the harness (typically `gemini` or `claude`).
+-   **Key**: A unique name for the harness (typically `gemini`, `claude`, `opencode`, or `codex`).
 -   **Value**: An object containing the base harness configuration.
 
 | Field | Type | Description |
@@ -166,7 +166,7 @@ When Scion starts an agent, it resolves the configuration in the following order
 
 2.  **Load Components**:
     *   Scion looks up the `runtime` specified in the active profile.
-    *   Scion loads the base configuration for the requested `harness` (e.g., from the agent's template).
+    *   Scion loads the base configuration for the requested `harness` (e.g., from the agent's template, typically one of `gemini`, `claude`, `opencode`, or `codex`).
 
 3.  **Apply Overrides**:
     *   Any `overrides` defined in the active profile for the specific harness are applied on top of the base harness configuration. For example, replacing the `image` or `user`.

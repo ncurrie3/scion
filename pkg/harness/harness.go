@@ -12,6 +12,8 @@ func New(harnessName string) api.Harness {
 		return &GeminiCLI{}
 	case "opencode":
 		return &OpenCode{}
+	case "codex":
+		return &Codex{}
 	default:
 		return &Generic{}
 	}

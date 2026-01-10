@@ -1,0 +1,10 @@
+
+check_for_update_on_startup = false
+approval_policy = "never"
+
+
+[projects."/workspace"]
+trust_level = "trusted"
+
+[projects."/repo-root/.scion/agents/foo/workspace"]
+trust_level = "trusted"

@@ -11,8 +11,8 @@ A template in Scion is a directory containing configuration files that are copie
 
 The home folder can contain any number of unix user setups most notably:
 
-- `settings.json`: Harness-specific settings (e.g., tools, allowlists). This allows a Scion agent to be configured to the full extent that harness allows (see for example, [gemini](http://geminicli.com) [claude](http://claude))
-- `system_prompt.md`: Instructions for the LLM. A system prompt can give the agent a stronger core sense of purpose than is possible with user-level instruction files (gemini.md, agents.md, claude.md etc)
+- `settings.json`: Harness-specific settings (e.g., tools, allowlists). This allows a Scion agent to be configured to the full extent that harness allows (see for example, [gemini](http://geminicli.com) [claude](http://claude) [codex](https://openai.com))
+- `system_prompt.md`: Instructions for the LLM. A system prompt can give the agent a stronger core sense of purpose than is possible with user-level instruction files (gemini.md, agents.md, claude.md, codex.md etc)
 - `.bashrc`: Shell customization for the agent.
 
 
@@ -38,6 +38,9 @@ scion templates create security-auditor
 
 # Create a Claude-based template
 scion templates create react-expert --harness claude
+
+# Create a Codex-based template
+scion templates create codex-helper --harness codex
 ```
 
 This creates a new directory in `.scion/templates/security-auditor/` populated with default files.
@@ -78,4 +81,4 @@ When starting an agent, specify the template using the `--type` or `-t` flag:
 scion start auditor "Audit the login flow" --type security-auditor
 ```
 
-If no type is specified, Scion defaults to the `gemini` template (if available) or the first available template.
+If no type is specified, Scion defaults to the `gemini` template (if available) or another harness-specific default (like `claude`, `opencode`, or `codex`).

@@ -25,6 +25,10 @@
     "opencode": {
       "image": "us-central1-docker.pkg.dev/user-content-search/public-docker/scion-opencode:latest",
       "user": "node"
+    },
+    "codex": {
+      "image": "us-central1-docker.pkg.dev/user-content-search/public-docker/scion-codex:latest",
+      "user": "node"
     }
   },
   "profiles": {

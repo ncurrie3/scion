@@ -12,13 +12,13 @@ The name of the template this configuration belongs to.
 
 ### `harness` (string)
 
-The agent harness to use. Currently supported values are `gemini` and `claude`.
+The agent harness to use. Currently supported values are `gemini`, `claude`, `opencode`, and `codex`.
 
 - **Example**: `"harness": "claude"`
 
 ### `config_dir` (string)
 
-The directory within the agent's home that contains harness-specific configuration files. Defaults to `.gemini` or `.claude` depending on the harness.
+The directory within the agent's home that contains harness-specific configuration files. Defaults to `.gemini`, `.claude`, or `.codex` depending on the harness.
 
 - **Example**: `"config_dir": ".gemini"`
 
@@ -99,4 +99,4 @@ Configuration specific to the Gemini harness.
 - **Fields**: `grove`, `name`, `status`.
 
 ## Inheritance
-`scion` uses a template inheritance system. Configuration fields are merged from the specified template type and finally any overrides in the agent's own directory. The last value defined for a field takes precedence. Unlike earlier versions, there is no longer a single global `default` template that all templates inherit from; instead, agents start from a specific harness default like `gemini` or `claude`.
+`scion` uses a template inheritance system. Configuration fields are merged from the specified template type and finally any overrides in the agent's own directory. The last value defined for a field takes precedence. Unlike earlier versions, there is no longer a single global `default` template that all templates inherit from; instead, agents start from a specific harness default like `gemini`, `claude`, `opencode`, or `codex`.

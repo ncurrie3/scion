@@ -64,6 +64,7 @@ type AuthConfig struct {
 	OAuthCreds           string
 	AnthropicAPIKey      string
 	OpenCodeAuthFile     string
+	CodexAuthFile        string
 	SelectedType         string
 }
 
