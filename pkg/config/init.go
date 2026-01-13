@@ -7,13 +7,15 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/ptone/scion-agent/pkg/api"
 )
 
 //go:embed all:embeds/*
-var embedsFS embed.FS
+var EmbedsFS embed.FS
 
 func GetDefaultSettingsData() ([]byte, error) {
-	data, err := embedsFS.ReadFile("embeds/default_settings.json")
+	data, err := EmbedsFS.ReadFile("embeds/default_settings.json")
 	if err != nil {
 		return nil, err
 	}
@@ -35,7 +37,10 @@ func GetDefaultSettingsData() ([]byte, error) {
 	return data, nil
 }
 
-func SeedTemplateDir(templateDir, templateName, harness, embedDir, configDirName string, force bool) error {
+// SeedCommonFiles seeds the common files for a harness template.
+// genericEmbedDir is usually "common".
+// specificEmbedDir is the harness specific dir in embeds (e.g. "gemini").
+func SeedCommonFiles(templateDir, genericEmbedDir, specificEmbedDir, configDirName string, force bool) error {
 	homeDir := filepath.Join(templateDir, "home")
 	// Create directories
 	dirs := []string{
@@ -46,9 +51,6 @@ func SeedTemplateDir(templateDir, templateName, harness, embedDir, configDirName
 	if configDirName != "" {
 		dirs = append(dirs, filepath.Join(homeDir, configDirName))
 	}
-	if harness == "codex" {
-		dirs = append(dirs, filepath.Join(homeDir, ".codex"))
-	}
 
 	for _, dir := range dirs {
 		if err := os.MkdirAll(dir, 0755); err != nil {
@@ -57,44 +59,25 @@ func SeedTemplateDir(templateDir, templateName, harness, embedDir, configDirName
 	}
 
 	// Helper to read embedded file
-	readEmbed := func(name string) string {
-		data, err := embedsFS.ReadFile(filepath.Join("embeds", embedDir, name))
+	readEmbed := func(dir, name string) string {
+		data, err := EmbedsFS.ReadFile(filepath.Join("embeds", dir, name))
 		if err != nil {
-			// Fallback to gemini if not found in harness dir
+			// Fallback to gemini if not found in specific dir
 			// Only fallback for non-opencode harnesses
-			if harness == "opencode" {
-				return ""
+			if dir != "opencode" {
+				data, err = EmbedsFS.ReadFile(filepath.Join("embeds", "gemini", name))
+				if err == nil {
+					return string(data)
+				}
 			}
-			data, err = embedsFS.ReadFile(filepath.Join("embeds", "gemini", name))
-			if err != nil {
-				return ""
-			}
-		}
-		return string(data)
-	}
-
-	readCommonEmbed := func(name string) string {
-		data, err := embedsFS.ReadFile(filepath.Join("embeds", "common", name))
-		if err != nil {
 			return ""
 		}
 		return string(data)
 	}
 
-	scionJSONStr := readEmbed("scion-agent.json")
-
-	mdFile := "gemini.md"
-	claudeJSON := ""
-	opencodeJSON := ""
-	codexTOML := ""
-	if harness == "claude" {
-		mdFile = "claude.md"
-		claudeJSON = readEmbed(".claude.json")
-	} else if harness == "opencode" {
-		opencodeJSON = readEmbed("opencode.json")
-	} else if harness == "codex" {
-		codexTOML = readEmbed("config.toml")
-	}
+	// Try to read scion-agent.json from specific dir.
+	// readEmbed handles fallback to gemini if not found (except for opencode).
+	scionJSONStr := readEmbed(specificEmbedDir, "scion-agent.json")
 
 	// Seed template files
 	files := []struct {
@@ -103,10 +86,10 @@ func SeedTemplateDir(templateDir, templateName, harness, embedDir, configDirName
 		mode    os.FileMode
 	}{
 		{filepath.Join(templateDir, "scion-agent.json"), scionJSONStr, 0644},
-		{filepath.Join(homeDir, "scion_hook.py"), readEmbed("scion_hook.py"), 0644},
-		{filepath.Join(homeDir, "scion_tool.py"), readCommonEmbed("scion_tool.py"), 0644},
-		{filepath.Join(homeDir, ".bashrc"), readEmbed("bashrc"), 0644},
-		{filepath.Join(homeDir, ".tmux.conf"), readCommonEmbed(".tmux.conf"), 0644},
+		{filepath.Join(homeDir, "scion_hook.py"), readEmbed(specificEmbedDir, "scion_hook.py"), 0644},
+		{filepath.Join(homeDir, "scion_tool.py"), readEmbed(genericEmbedDir, "scion_tool.py"), 0644},
+		{filepath.Join(homeDir, ".bashrc"), readEmbed(specificEmbedDir, "bashrc"), 0644},
+		{filepath.Join(homeDir, ".tmux.conf"), readEmbed(genericEmbedDir, ".tmux.conf"), 0644},
 	}
 
 	if configDirName != "" {
@@ -115,43 +98,18 @@ func SeedTemplateDir(templateDir, templateName, harness, embedDir, configDirName
 			content string
 			mode    os.FileMode
 		}{
-			{filepath.Join(homeDir, configDirName, "settings.json"), readEmbed("settings.json"), 0644},
-			{filepath.Join(homeDir, configDirName, "system_prompt.md"), readEmbed("system_prompt.md"), 0644},
-			{filepath.Join(homeDir, configDirName, mdFile), readEmbed(mdFile), 0644},
+			{filepath.Join(homeDir, configDirName, "settings.json"), readEmbed(specificEmbedDir, "settings.json"), 0644},
+			{filepath.Join(homeDir, configDirName, "system_prompt.md"), readEmbed(specificEmbedDir, "system_prompt.md"), 0644},
 		}...)
-	}
-
-	if claudeJSON != "" {
-		files = append(files, struct {
-			path    string
-			content string
-			mode    os.FileMode
-		}{filepath.Join(homeDir, ".claude.json"), claudeJSON, 0644})
-	}
-
-	if opencodeJSON != "" {
-		files = append(files, struct {
-			path    string
-			content string
-			mode    os.FileMode
-		}{filepath.Join(homeDir, configDirName, "opencode.json"), opencodeJSON, 0644})
-	}
-
-	if codexTOML != "" {
-		files = append(files, struct {
-			path    string
-			content string
-			mode    os.FileMode
-		}{filepath.Join(homeDir, ".codex", "config.toml"), codexTOML, 0644})
 	}
 
 	for _, f := range files {
 		if f.content == "" {
 			continue
 		}
-		// Always write settings.json, .claude.json, opencode.json, and config.toml to ensure they match current defaults
 		baseName := filepath.Base(f.path)
-		if force || baseName == "settings.json" || baseName == ".claude.json" || baseName == "opencode.json" || baseName == "config.toml" {
+		// Force overwrite for critical config files
+		if force || baseName == "settings.json" {
 			if err := os.WriteFile(f.path, []byte(f.content), f.mode); err != nil {
 				return fmt.Errorf("failed to write file %s: %w", f.path, err)
 			}
@@ -168,7 +126,9 @@ func SeedTemplateDir(templateDir, templateName, harness, embedDir, configDirName
 	return nil
 }
 
-func InitProject(targetDir string) error {
+
+
+func InitProject(targetDir string, harnesses []api.Harness) error {
 	var projectDir string
 	var err error
 
@@ -204,22 +164,16 @@ func InitProject(targetDir string) error {
 		return fmt.Errorf("failed to create agents directory: %w", err)
 	}
 
-	if err := SeedTemplateDir(filepath.Join(templatesDir, "gemini"), "gemini", "gemini", "gemini", ".gemini", false); err != nil {
-		return fmt.Errorf("failed to seed gemini template: %w", err)
+	for _, h := range harnesses {
+		if err := h.SeedTemplateDir(filepath.Join(templatesDir, h.Name()), false); err != nil {
+			return fmt.Errorf("failed to seed %s template: %w", h.Name(), err)
+		}
 	}
 
-	if err := SeedTemplateDir(filepath.Join(templatesDir, "claude"), "claude", "claude", "claude", ".claude", false); err != nil {
-		return fmt.Errorf("failed to seed claude template: %w", err)
-	}
-
-	if err := SeedTemplateDir(filepath.Join(templatesDir, "opencode"), "opencode", "opencode", "opencode", ".config/opencode", false); err != nil {
-		return fmt.Errorf("failed to seed opencode template: %w", err)
-	}
-
-	return SeedTemplateDir(filepath.Join(templatesDir, "codex"), "codex", "codex", "codex", "", false)
+	return nil
 }
 
-func InitGlobal() error {
+func InitGlobal(harnesses []api.Harness) error {
 	globalDir, err := GetGlobalDir()
 	if err != nil {
 		return err
@@ -248,17 +202,11 @@ func InitGlobal() error {
 		return fmt.Errorf("failed to create global agents directory: %w", err)
 	}
 
-	if err := SeedTemplateDir(filepath.Join(templatesDir, "gemini"), "gemini", "gemini", "gemini", ".gemini", false); err != nil {
-		return fmt.Errorf("failed to seed global gemini template: %w", err)
+	for _, h := range harnesses {
+		if err := h.SeedTemplateDir(filepath.Join(templatesDir, h.Name()), false); err != nil {
+			return fmt.Errorf("failed to seed global %s template: %w", h.Name(), err)
+		}
 	}
 
-	if err := SeedTemplateDir(filepath.Join(templatesDir, "claude"), "claude", "claude", "claude", ".claude", false); err != nil {
-		return fmt.Errorf("failed to seed global claude template: %w", err)
-	}
-
-	if err := SeedTemplateDir(filepath.Join(templatesDir, "opencode"), "opencode", "opencode", "opencode", ".config/opencode", false); err != nil {
-		return fmt.Errorf("failed to seed global opencode template: %w", err)
-	}
-
-	return SeedTemplateDir(filepath.Join(templatesDir, "codex"), "codex", "codex", "codex", "", false)
+	return nil
 }

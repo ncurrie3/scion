@@ -11,6 +11,8 @@ import (
 	"github.com/ptone/scion-agent/pkg/config"
 )
 
+
+
 func TestProvisionAgentEnvMerging(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -126,9 +128,10 @@ func TestProvisionGeminiAgentSettings(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 
 	// Initialize a mock project
+	// Initialize a mock project
 	projectDir := filepath.Join(tmpDir, "project")
 	projectScionDir := filepath.Join(projectDir, ".scion")
-	if err := config.InitProject(projectScionDir); err != nil {
+	if err := config.InitProject(projectScionDir, getTestHarnesses()); err != nil {
 		t.Fatalf("InitProject failed: %v", err)
 	}
 
@@ -177,9 +180,10 @@ func TestProvisionAgentNonGitWorkspace(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 
 	// Project-local grove
+	// Initialize a mock project
 	projectDir := filepath.Join(tmpDir, "project")
 	projectScionDir := filepath.Join(projectDir, ".scion")
-	if err := config.InitProject(projectScionDir); err != nil {
+	if err := config.InitProject(projectScionDir, getTestHarnesses()); err != nil {
 		t.Fatalf("InitProject failed: %v", err)
 	}
 
@@ -220,7 +224,7 @@ func TestProvisionAgentNonGitWorkspace(t *testing.T) {
 	}
 
 	// Global grove
-	if err := config.InitGlobal(); err != nil {
+	if err := config.InitGlobal(getTestHarnesses()); err != nil {
 		t.Fatalf("InitGlobal failed: %v", err)
 	}
 	globalScionDir, _ := config.GetGlobalDir()
@@ -271,9 +275,10 @@ func TestProvisionAgentWorkdirFlag(t *testing.T) {
 	os.Setenv("HOME", tmpDir)
 
 	// Project-local grove
+	// Initialize a mock project
 	projectDir := filepath.Join(tmpDir, "project")
 	projectScionDir := filepath.Join(projectDir, ".scion")
-	if err := config.InitProject(projectScionDir); err != nil {
+	if err := config.InitProject(projectScionDir, getTestHarnesses()); err != nil {
 		t.Fatalf("InitProject failed: %v", err)
 	}
 
@@ -346,7 +351,7 @@ func TestProvisionAgentWorkdirFlag(t *testing.T) {
 		t.Fatal(err)
 	}
 	gitScionDir := filepath.Join(gitDir, ".scion")
-	if err := config.InitProject(gitScionDir); err != nil {
+	if err := config.InitProject(gitScionDir, getTestHarnesses()); err != nil {
 		t.Fatalf("InitProject failed: %v", err)
 	}
 

@@ -3,7 +3,9 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/ptone/scion-agent/pkg/api"
 	"github.com/ptone/scion-agent/pkg/config"
+	"github.com/ptone/scion-agent/pkg/harness"
 	"github.com/spf13/cobra"
 )
 
@@ -30,14 +32,21 @@ By default, it initializes in:
 
 With --global, it initializes in the user's home folder.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		harnesses := []api.Harness{
+			&harness.GeminiCLI{},
+			&harness.ClaudeCode{},
+			&harness.OpenCode{},
+			&harness.Codex{},
+		}
+
 		if globalInit {
 			fmt.Println("Initializing global scion directory...")
-			if err := config.InitGlobal(); err != nil {
+			if err := config.InitGlobal(harnesses); err != nil {
 				return fmt.Errorf("failed to initialize global config: %w", err)
 			}
 		} else {
 			fmt.Println("Initializing scion project grove...")
-			if err := config.InitProject(""); err != nil {
+			if err := config.InitProject("", harnesses); err != nil {
 				return fmt.Errorf("failed to initialize project grove: %w", err)
 			}
 		}

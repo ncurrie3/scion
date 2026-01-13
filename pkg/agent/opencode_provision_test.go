@@ -9,6 +9,8 @@ import (
 	"github.com/ptone/scion-agent/pkg/config"
 )
 
+
+
 func TestProvisionOpencodeAgent(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -25,7 +27,7 @@ func TestProvisionOpencodeAgent(t *testing.T) {
 	// Initialize a mock project
 	projectDir := filepath.Join(tmpDir, "project")
 	projectScionDir := filepath.Join(projectDir, ".scion")
-	if err := config.InitProject(projectScionDir); err != nil {
+	if err := config.InitProject(projectScionDir, getTestHarnesses()); err != nil {
 		t.Fatalf("InitProject failed: %v", err)
 	}
 

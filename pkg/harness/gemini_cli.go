@@ -239,6 +239,28 @@ func (g *GeminiCLI) isValidPromptFile(path string) bool {
 	return true
 }
 
+func (g *GeminiCLI) SeedTemplateDir(templateDir string, force bool) error {
+	if err := config.SeedCommonFiles(templateDir, "common", g.GetEmbedDir(), g.DefaultConfigDir(), force); err != nil {
+		return err
+	}
+
+	// Seed gemini.md
+	homeDir := filepath.Join(templateDir, "home")
+	mdPath := filepath.Join(homeDir, g.DefaultConfigDir(), "gemini.md")
+
+	data, err := config.EmbedsFS.ReadFile(filepath.Join("embeds", g.GetEmbedDir(), "gemini.md"))
+	if err != nil {
+		return nil
+	}
+
+	if _, err := os.Stat(mdPath); os.IsNotExist(err) || force {
+		if err := os.WriteFile(mdPath, data, 0644); err != nil {
+			return fmt.Errorf("failed to write gemini.md: %w", err)
+		}
+	}
+	return nil
+}
+
 func (g *GeminiCLI) Provision(ctx context.Context, agentName, agentHome, agentWorkspace string) error {
 	agentDir := filepath.Dir(agentHome)
 	scionAgentPath := filepath.Join(agentDir, "scion-agent.json")

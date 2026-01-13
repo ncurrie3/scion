@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/ptone/scion-agent/pkg/config"
 	"github.com/ptone/scion-agent/pkg/util"
 )
 
@@ -14,6 +15,25 @@ type OpenCode struct{}
 
 func (o *OpenCode) Name() string {
 	return "opencode"
+}
+
+func (o *OpenCode) SeedTemplateDir(templateDir string, force bool) error {
+	if err := config.SeedCommonFiles(templateDir, "common", o.GetEmbedDir(), o.DefaultConfigDir(), force); err != nil {
+		return err
+	}
+
+	// Seed opencode.json
+	homeDir := filepath.Join(templateDir, "home")
+	jsonPath := filepath.Join(homeDir, o.DefaultConfigDir(), "opencode.json")
+
+	data, err := config.EmbedsFS.ReadFile(filepath.Join("embeds", o.GetEmbedDir(), "opencode.json"))
+	if err == nil {
+		// Always write opencode.json
+		if err := os.WriteFile(jsonPath, data, 0644); err != nil {
+			return fmt.Errorf("failed to write opencode.json: %w", err)
+		}
+	}
+	return nil
 }
 
 func (o *OpenCode) DiscoverAuth(agentHome string) api.AuthConfig {

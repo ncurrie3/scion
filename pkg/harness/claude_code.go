@@ -3,11 +3,13 @@ package harness
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/ptone/scion-agent/pkg/config"
 	"github.com/ptone/scion-agent/pkg/util"
 )
 
@@ -58,6 +60,44 @@ func (c *ClaudeCode) DefaultConfigDir() string {
 
 func (c *ClaudeCode) HasSystemPrompt(agentHome string) bool {
 	return true
+}
+
+func (c *ClaudeCode) SeedTemplateDir(templateDir string, force bool) error {
+	if err := config.SeedCommonFiles(templateDir, "common", c.GetEmbedDir(), c.DefaultConfigDir(), force); err != nil {
+		return err
+	}
+
+	homeDir := filepath.Join(templateDir, "home")
+
+	// Seed claude.md
+	mdPath := filepath.Join(homeDir, c.DefaultConfigDir(), "claude.md")
+	mdData, err := config.EmbedsFS.ReadFile(filepath.Join("embeds", c.GetEmbedDir(), "claude.md"))
+	if err == nil {
+		if _, err := os.Stat(mdPath); os.IsNotExist(err) || force {
+			if err := os.WriteFile(mdPath, mdData, 0644); err != nil {
+				return fmt.Errorf("failed to write claude.md: %w", err)
+			}
+		}
+	}
+
+	// Seed .claude.json
+	claudeJSONPath := filepath.Join(homeDir, ".claude.json")
+	claudeJSONData, err := config.EmbedsFS.ReadFile(filepath.Join("embeds", c.GetEmbedDir(), ".claude.json"))
+	if err == nil {
+		// Always write .claude.json if force or creating new
+		baseName := filepath.Base(claudeJSONPath)
+		if force || baseName == ".claude.json" { // Always write .claude.json logic from original SeedTemplateDir
+			if err := os.WriteFile(claudeJSONPath, claudeJSONData, 0644); err != nil {
+				return fmt.Errorf("failed to write .claude.json: %w", err)
+			}
+		} else if _, err := os.Stat(claudeJSONPath); os.IsNotExist(err) {
+			if err := os.WriteFile(claudeJSONPath, claudeJSONData, 0644); err != nil {
+				return fmt.Errorf("failed to write .claude.json: %w", err)
+			}
+		}
+	}
+
+	return nil
 }
 
 func (c *ClaudeCode) Provision(ctx context.Context, agentName, agentHome, agentWorkspace string) error {

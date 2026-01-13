@@ -37,7 +37,8 @@ func TestCreateTemplate(t *testing.T) {
 
 	// Test creating a project template
 	tplName := "test-tpl"
-	err = CreateTemplate(tplName, "gemini", "gemini", ".gemini", false)
+	mockGemini := &MockHarness{NameVal: "gemini", EmbedDirVal: "gemini", ConfigDirVal: ".gemini"}
+	err = CreateTemplate(tplName, mockGemini, false)
 	if err != nil {
 		t.Fatalf("failed to create project template: %v", err)
 	}
@@ -61,7 +62,7 @@ func TestCreateTemplate(t *testing.T) {
 
 	// Test creating a global template
 	globalTplName := "global-tpl"
-	err = CreateTemplate(globalTplName, "gemini", "gemini", ".gemini", true)
+	err = CreateTemplate(globalTplName, mockGemini, true)
 	if err != nil {
 		t.Fatalf("failed to create global template: %v", err)
 	}
@@ -72,7 +73,7 @@ func TestCreateTemplate(t *testing.T) {
 	}
 
 	// Test duplicate template creation fails
-	err = CreateTemplate(tplName, "gemini", "gemini", ".gemini", false)
+	err = CreateTemplate(tplName, mockGemini, false)
 	if err == nil {
 		t.Error("expected error when creating duplicate template, got nil")
 	}
@@ -106,11 +107,12 @@ func TestDeleteTemplate(t *testing.T) {
 
 	// Create templates to delete
 	tplName := "test-tpl-delete"
-	if err := CreateTemplate(tplName, "gemini", "gemini", ".gemini", false); err != nil {
+	mockGemini := &MockHarness{NameVal: "gemini", EmbedDirVal: "gemini", ConfigDirVal: ".gemini"}
+	if err := CreateTemplate(tplName, mockGemini, false); err != nil {
 		t.Fatal(err)
 	}
 	globalTplName := "global-tpl-delete"
-	if err := CreateTemplate(globalTplName, "gemini", "gemini", ".gemini", true); err != nil {
+	if err := CreateTemplate(globalTplName, mockGemini, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -170,7 +172,7 @@ func TestUpdateDefaultTemplates(t *testing.T) {
 	}
 
 	// Initialize project (creates default templates)
-	if err := InitProject(""); err != nil {
+	if err := InitProject("", GetMockHarnesses()); err != nil {
 		t.Fatal(err)
 	}
 
@@ -183,7 +185,7 @@ func TestUpdateDefaultTemplates(t *testing.T) {
 	}
 
 	// Update default templates
-	if err := UpdateDefaultTemplates(false); err != nil {
+	if err := UpdateDefaultTemplates(false, GetMockHarnesses()); err != nil {
 		t.Fatalf("failed to update default templates: %v", err)
 	}
 
@@ -294,7 +296,8 @@ func TestCloneTemplate(t *testing.T) {
 
 	// Create a source template
 	srcName := "src-tpl"
-	if err := CreateTemplate(srcName, "gemini", "gemini", ".gemini", false); err != nil {
+	mockGemini := &MockHarness{NameVal: "gemini", EmbedDirVal: "gemini", ConfigDirVal: ".gemini"}
+	if err := CreateTemplate(srcName, mockGemini, false); err != nil {
 		t.Fatal(err)
 	}
 

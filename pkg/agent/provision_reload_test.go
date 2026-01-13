@@ -9,6 +9,8 @@ import (
 	"github.com/ptone/scion-agent/pkg/config"
 )
 
+
+
 func TestProvisionAgentReloadsConfig(t *testing.T) {
 	// This test verifies that ProvisionAgent reloads the config after harness.Provision
 	// which allows harness-injected changes (like GEMINI_API_KEY) to be returned.
@@ -28,7 +30,7 @@ func TestProvisionAgentReloadsConfig(t *testing.T) {
 	// Initialize a mock project
 	projectDir := filepath.Join(tmpDir, "project")
 	projectScionDir := filepath.Join(projectDir, ".scion")
-	if err := config.InitProject(projectScionDir); err != nil {
+	if err := config.InitProject(projectScionDir, getTestHarnesses()); err != nil {
 		t.Fatalf("InitProject failed: %v", err)
 	}
 

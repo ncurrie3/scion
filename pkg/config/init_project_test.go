@@ -15,7 +15,7 @@ func TestInitProject_CreatesClaudeTemplate(t *testing.T) {
 	defer os.RemoveAll(tempDir)
 
 	// Run InitProject
-	err = InitProject(tempDir)
+	err = InitProject(tempDir, GetMockHarnesses())
 	if err != nil {
 		t.Fatalf("InitProject failed: %v", err)
 	}

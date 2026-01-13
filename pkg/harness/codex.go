@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/ptone/scion-agent/pkg/config"
 	"github.com/ptone/scion-agent/pkg/util"
 )
 
@@ -14,6 +15,29 @@ type Codex struct{}
 
 func (c *Codex) Name() string {
 	return "codex"
+}
+
+func (c *Codex) SeedTemplateDir(templateDir string, force bool) error {
+	if err := config.SeedCommonFiles(templateDir, "common", c.GetEmbedDir(), c.DefaultConfigDir(), force); err != nil {
+		return err
+	}
+
+	homeDir := filepath.Join(templateDir, "home")
+	codexDir := filepath.Join(homeDir, ".codex")
+	if err := os.MkdirAll(codexDir, 0755); err != nil {
+		return err
+	}
+
+	// Seed config.toml
+	tomlPath := filepath.Join(codexDir, "config.toml")
+	data, err := config.EmbedsFS.ReadFile(filepath.Join("embeds", c.GetEmbedDir(), "config.toml"))
+	if err == nil {
+		// Always write config.toml
+		if err := os.WriteFile(tomlPath, data, 0644); err != nil {
+			return fmt.Errorf("failed to write config.toml: %w", err)
+		}
+	}
+	return nil
 }
 
 func (c *Codex) DiscoverAuth(agentHome string) api.AuthConfig {

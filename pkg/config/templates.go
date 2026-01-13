@@ -96,7 +96,7 @@ func GetTemplateChain(name string) ([]*Template, error) {
 	return chain, nil
 }
 
-func CreateTemplate(name, harness, embedDir, configDirName string, global bool) error {
+func CreateTemplate(name string, h api.Harness, global bool) error {
 	var templatesDir string
 	var err error
 
@@ -115,7 +115,7 @@ func CreateTemplate(name, harness, embedDir, configDirName string, global bool) 
 		return fmt.Errorf("template %s already exists at %s", name, templateDir)
 	}
 
-	return SeedTemplateDir(templateDir, name, harness, embedDir, configDirName, false)
+	return h.SeedTemplateDir(templateDir, false)
 }
 
 func CloneTemplate(srcName, destName string, global bool) error {
@@ -146,7 +146,7 @@ func CloneTemplate(srcName, destName string, global bool) error {
 	return nil
 }
 
-func UpdateDefaultTemplates(global bool) error {
+func UpdateDefaultTemplates(global bool, harnesses []api.Harness) error {
 	var templatesDir string
 	var err error
 
@@ -160,16 +160,12 @@ func UpdateDefaultTemplates(global bool) error {
 		return err
 	}
 
-	if err := SeedTemplateDir(filepath.Join(templatesDir, "gemini"), "gemini", "gemini", "gemini", ".gemini", true); err != nil {
-		return err
+	for _, h := range harnesses {
+		if err := h.SeedTemplateDir(filepath.Join(templatesDir, h.Name()), true); err != nil {
+			return err
+		}
 	}
-	if err := SeedTemplateDir(filepath.Join(templatesDir, "claude"), "claude", "claude", "claude", ".claude", true); err != nil {
-		return err
-	}
-	if err := SeedTemplateDir(filepath.Join(templatesDir, "opencode"), "opencode", "opencode", "opencode", "", true); err != nil {
-		return err
-	}
-	return SeedTemplateDir(filepath.Join(templatesDir, "codex"), "codex", "codex", "codex", "", true)
+	return nil
 }
 
 func DeleteTemplate(name string, global bool) error {

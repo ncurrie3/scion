@@ -19,6 +19,9 @@ type Harness interface {
 	// This is called after templates are copied and scion-agent.json is written.
 	Provision(ctx context.Context, agentName, agentHome, agentWorkspace string) error
 
+	// SeedTemplateDir seeds the template directory for this harness.
+	SeedTemplateDir(templateDir string, force bool) error
+
 	// GetEmbedDir returns the name of the directory in pkg/config/embeds/
 	// that contains template files for this harness (e.g., "claude", "gemini").
 	GetEmbedDir() string

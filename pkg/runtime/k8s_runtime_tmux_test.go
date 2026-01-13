@@ -31,6 +31,7 @@ func (m *MockHarness) DiscoverAuth(agentHome string) api.AuthConfig { return api
 func (m *MockHarness) DefaultConfigDir() string { return ".mock" }
 func (m *MockHarness) HasSystemPrompt(agentHome string) bool { return false }
 func (m *MockHarness) Provision(ctx context.Context, agentName, agentHome, agentWorkspace string) error { return nil }
+func (m *MockHarness) SeedTemplateDir(templateDir string, force bool) error { return nil }
 func (m *MockHarness) GetEmbedDir() string { return "mock" }
 func (m *MockHarness) GetInterruptKey() string { return "C-c" }
 
