@@ -86,7 +86,6 @@ func SeedCommonFiles(templateDir, genericEmbedDir, specificEmbedDir, configDirNa
 		mode    os.FileMode
 	}{
 		{filepath.Join(templateDir, "scion-agent.json"), scionJSONStr, 0644},
-		{filepath.Join(homeDir, "scion_hook.py"), readEmbed(specificEmbedDir, "scion_hook.py"), 0644},
 		{filepath.Join(homeDir, "scion_tool.py"), readEmbed(genericEmbedDir, "scion_tool.py"), 0644},
 		{filepath.Join(homeDir, ".bashrc"), readEmbed(specificEmbedDir, "bashrc"), 0644},
 		{filepath.Join(homeDir, ".tmux.conf"), readEmbed(genericEmbedDir, ".tmux.conf"), 0644},
