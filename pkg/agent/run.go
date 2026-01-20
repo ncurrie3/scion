@@ -228,7 +228,8 @@ func (m *AgentManager) Start(ctx context.Context, opts api.StartOptions) (*api.A
 	id, err := m.Runtime.Run(ctx, runCfg)
 	if err != nil {
 		if useTmux && (strings.Contains(err.Error(), "executable file not found") ||
-			strings.Contains(err.Error(), "tmux")) {
+			strings.Contains(err.Error(), "tmux: command not found") ||
+			strings.Contains(err.Error(), "tmux: not found")) {
 			return nil, fmt.Errorf("failed to launch container with tmux: tmux binary not found in image '%s'. "+
 				"Please ensure the image has tmux installed, use an image with a :tmux tag, or disable tmux in settings. Error: %w", resolvedImage, err)
 		}
