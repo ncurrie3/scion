@@ -1,8 +1,53 @@
 #!/bin/bash
 set -e
 
-echo "Submitting build to Cloud Build..."
+# Trigger Cloud Build for scion images
+# Usage: trigger-cloudbuild.sh [target]
+#   target: all (default), core-base, scion-base, harnesses
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${REPO_ROOT}"
+
+TARGET="${1:-all}"
+PROJECT="${PROJECT:-ptone-misc}"
+SHORT_SHA=$(git rev-parse --short HEAD)
+
+case "${TARGET}" in
+  all)
+    echo "Submitting full build (core-base -> scion-base -> harnesses) to Cloud Build..."
+    CONFIG="image-build/cloudbuild.yaml"
+    ;;
+  core-base)
+    echo "Submitting core-base build to Cloud Build..."
+    CONFIG="image-build/cloudbuild-core-base.yaml"
+    ;;
+  scion-base)
+    echo "Submitting scion-base build to Cloud Build..."
+    CONFIG="image-build/cloudbuild-scion-base.yaml"
+    ;;
+  harnesses)
+    echo "Submitting harnesses build to Cloud Build..."
+    CONFIG="image-build/cloudbuild-harnesses.yaml"
+    ;;
+  *)
+    echo "Unknown target: ${TARGET}"
+    echo "Usage: trigger-cloudbuild.sh [all|core-base|scion-base|harnesses]"
+    echo ""
+    echo "Targets:"
+    echo "  all         - Full rebuild of all images (default)"
+    echo "  core-base   - Build only core-base (foundation tools)"
+    echo "  scion-base  - Build only scion-base (uses existing core-base:latest)"
+    echo "  harnesses   - Build only harnesses (uses existing scion-base:latest)"
+    exit 1
+    ;;
+esac
+
 gcloud builds submit --async \
---project=ptone-misc \
---substitutions=SHORT_SHA=$(git rev-parse --short HEAD) \
---config image-build/cloudbuild.yaml .
+  --project="${PROJECT}" \
+  --substitutions="SHORT_SHA=${SHORT_SHA}" \
+  --config="${CONFIG}" .
+
+echo ""
+echo "Build submitted. View progress at:"
+echo "  https://console.cloud.google.com/cloud-build/builds?project=${PROJECT}"
