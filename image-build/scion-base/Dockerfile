@@ -46,6 +46,21 @@ WORKDIR /opt/git-2.52.0/
 RUN make prefix=/usr/local all
 RUN make prefix=/usr/local install
 
+# Build sciontool from source
+# Note: Build context is repo root, so we copy Go source files here
+WORKDIR /src
+ENV PATH="/usr/local/go/bin:${PATH}"
+ENV CGO_ENABLED=1
+
+# Copy go.mod and go.sum first for better layer caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source and build sciontool
+COPY cmd/ ./cmd/
+COPY pkg/ ./pkg/
+RUN go build -ldflags="-s -w" -o /usr/local/bin/sciontool ./cmd/sciontool/
+
 # Final Stage
 FROM ${BASE_IMAGE}
 USER root
@@ -115,6 +130,7 @@ COPY --from=builder /usr/local/go /usr/local/go
 COPY --from=builder /usr/local/bin/git /usr/local/bin/git
 COPY --from=builder /usr/local/libexec/git-core /usr/local/libexec/git-core
 COPY --from=builder /usr/local/share/git-core /usr/local/share/git-core
+COPY --from=builder /usr/local/bin/sciontool /usr/local/bin/sciontool
 
 # Create scion user with passwordless sudo
 RUN useradd -m -s /bin/zsh -u 1001 scion && \
