@@ -17,18 +17,27 @@ Before making changes, review the relevant design documentation:
 cd web
 npm install    # First time only, or after package.json changes
 
-# Option 1: Build and run (recommended for SSR testing)
+# Option 1: Full build and run (recommended)
+npm run build && npm start
+
+# Option 2: Development with client assets built
+npm run dev:full
+
+# Option 3: Server only (client assets will be placeholders)
 npm run build:server && npm start
 
-# Option 2: Development mode (may have tsx/ESM compatibility issues)
+# Option 4: Development mode with tsx (may have ESM compatibility issues)
 npm run dev
 ```
+
+**Note:** Options 1 and 2 include building the client-side JavaScript. Without building the client, navigation and interactive features will not work properly.
 
 ### Common Commands
 
 | Command | Purpose |
 |---------|---------|
 | `npm run dev` | Start development server with tsx (hot reload) |
+| `npm run dev:full` | Build client assets, then start dev server |
 | `npm run build` | Build both server and client for production |
 | `npm run build:server` | Build server-side TypeScript |
 | `npm run build:client` | Build client-side with Vite |

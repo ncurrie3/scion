@@ -43,7 +43,9 @@ export function createApp(config: AppConfig): Koa {
   );
 
   // Static asset serving from public/ directory
-  const publicDir = resolve(__dirname, '../../public');
+  // Path is relative to compiled location: dist/server/server/app.js
+  // So we need to go up 3 levels to reach the project root
+  const publicDir = resolve(__dirname, '../../../public');
   app.use(
     serve(publicDir, {
       maxage: config.production ? 86400000 : 0, // 24h in prod, no cache in dev
