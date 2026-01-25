@@ -99,6 +99,34 @@ var hubHostsCmd = &cobra.Command{
 	RunE:  runHubHosts,
 }
 
+// hubEnableCmd enables Hub integration
+var hubEnableCmd = &cobra.Command{
+	Use:   "enable",
+	Short: "Enable Hub integration",
+	Long: `Enable Hub integration for agent operations.
+
+When enabled, agent operations (create, start, delete) will be routed through
+the Hub API instead of being performed locally. This allows centralized
+coordination of agents across multiple runtime hosts.
+
+The Hub endpoint must be configured before enabling:
+  - SCION_HUB_ENDPOINT environment variable
+  - hub.endpoint in settings.yaml
+  - --hub flag on any command`,
+	RunE: runHubEnable,
+}
+
+// hubDisableCmd disables Hub integration
+var hubDisableCmd = &cobra.Command{
+	Use:   "disable",
+	Short: "Disable Hub integration",
+	Long: `Disable Hub integration for agent operations.
+
+When disabled, agent operations are performed locally on this host.
+The Hub configuration is preserved and can be re-enabled later.`,
+	RunE: runHubDisable,
+}
+
 func init() {
 	rootCmd.AddCommand(hubCmd)
 	hubCmd.AddCommand(hubStatusCmd)
@@ -106,6 +134,8 @@ func init() {
 	hubCmd.AddCommand(hubDeregisterCmd)
 	hubCmd.AddCommand(hubGrovesCmd)
 	hubCmd.AddCommand(hubHostsCmd)
+	hubCmd.AddCommand(hubEnableCmd)
+	hubCmd.AddCommand(hubDisableCmd)
 
 	// Register flags
 	hubRegisterCmd.Flags().StringVar(&hubRegisterMode, "mode", "connected", "Registration mode (connected, read-only)")
@@ -153,11 +183,14 @@ func runHubStatus(cmd *cobra.Command, args []string) error {
 
 	endpoint := GetHubEndpoint(settings)
 
+	hubEnabled := settings.IsHubEnabled()
+
 	if hubOutputJSON {
 		status := map[string]interface{}{
-			"enabled":    !noHub,
-			"endpoint":   endpoint,
-			"configured": settings.IsHubConfigured(),
+			"enabled":       hubEnabled,
+			"cliOverride":   noHub,
+			"endpoint":      endpoint,
+			"configured":    settings.IsHubConfigured(),
 		}
 		if settings.Hub != nil {
 			status["hostId"] = settings.Hub.HostID
@@ -191,7 +224,10 @@ func runHubStatus(cmd *cobra.Command, args []string) error {
 	// Text output
 	fmt.Println("Hub Integration Status")
 	fmt.Println("======================")
-	fmt.Printf("Enabled:    %v\n", !noHub)
+	fmt.Printf("Enabled:    %v\n", hubEnabled)
+	if noHub {
+		fmt.Printf("            (overridden by --no-hub flag)\n")
+	}
 	fmt.Printf("Endpoint:   %s\n", valueOrNone(endpoint))
 	fmt.Printf("Configured: %v\n", settings.IsHubConfigured())
 
@@ -479,4 +515,78 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+func runHubEnable(cmd *cobra.Command, args []string) error {
+	// Resolve grove path
+	resolvedPath, isGlobal, err := config.ResolveGrovePath(grovePath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve grove path: %w", err)
+	}
+
+	settings, err := config.LoadSettings(resolvedPath)
+	if err != nil {
+		return fmt.Errorf("failed to load settings: %w", err)
+	}
+
+	endpoint := GetHubEndpoint(settings)
+	if endpoint == "" {
+		return fmt.Errorf("Hub endpoint not configured.\n\nConfigure the Hub endpoint via:\n  - SCION_HUB_ENDPOINT environment variable\n  - hub.endpoint in settings.yaml\n  - --hub flag on any command\n\nExample: scion config set hub.endpoint https://hub.scion.dev --global")
+	}
+
+	// Try to connect and verify Hub is healthy before enabling
+	client, err := getHubClient(settings)
+	if err != nil {
+		return fmt.Errorf("failed to create Hub client: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	health, err := client.Health(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to connect to Hub at %s: %w\n\nVerify the Hub endpoint is correct and the Hub is running.", endpoint, err)
+	}
+
+	// Save the enabled setting
+	if err := config.UpdateSetting(resolvedPath, "hub.enabled", "true", isGlobal); err != nil {
+		return fmt.Errorf("failed to save setting: %w", err)
+	}
+
+	fmt.Printf("Hub integration enabled.\n")
+	fmt.Printf("Endpoint: %s\n", endpoint)
+	fmt.Printf("Hub Status: %s (version %s)\n", health.Status, health.Version)
+	fmt.Println("\nAgent operations (create, start, delete) will now be routed through the Hub.")
+	fmt.Println("Use 'scion hub disable' to switch back to local-only mode.")
+
+	return nil
+}
+
+func runHubDisable(cmd *cobra.Command, args []string) error {
+	// Resolve grove path
+	resolvedPath, isGlobal, err := config.ResolveGrovePath(grovePath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve grove path: %w", err)
+	}
+
+	settings, err := config.LoadSettings(resolvedPath)
+	if err != nil {
+		return fmt.Errorf("failed to load settings: %w", err)
+	}
+
+	if !settings.IsHubEnabled() {
+		fmt.Println("Hub integration is already disabled.")
+		return nil
+	}
+
+	// Save the disabled setting
+	if err := config.UpdateSetting(resolvedPath, "hub.enabled", "false", isGlobal); err != nil {
+		return fmt.Errorf("failed to save setting: %w", err)
+	}
+
+	fmt.Println("Hub integration disabled.")
+	fmt.Println("Agent operations will now be performed locally.")
+	fmt.Println("\nHub configuration is preserved. Use 'scion hub enable' to re-enable.")
+
+	return nil
 }

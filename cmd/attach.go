@@ -23,6 +23,16 @@ If the agent was started with tmux support, this will attach to the tmux session
 	RunE: func(cmd *cobra.Command, args []string) error {
 		agentName := args[0]
 
+		// Check if Hub is enabled - attach is not supported via Hub yet
+		hubCtx, err := CheckHubAvailability(grovePath)
+		if err != nil {
+			return err
+		}
+
+		if hubCtx != nil {
+			return fmt.Errorf("attach is not yet supported when using Hub integration\n\nTo attach locally, use: scion --no-hub attach %s", agentName)
+		}
+
 		// Try to resolve grove info for better error messages
 		projectDir, _ := config.GetResolvedProjectDir(grovePath)
 		groveName := config.GetGroveName(projectDir)
@@ -65,7 +75,7 @@ If the agent was started with tmux support, this will attach to the tmux session
 		rt := runtime.GetRuntime(targetGrovePath, effectiveRuntime)
 
 		fmt.Printf("Attaching to agent '%s' (grove: %s)...\n", agentName, groveName)
-		err := rt.Attach(context.Background(), agentName)
+		err = rt.Attach(context.Background(), agentName)
 		if err != nil {
 			// If the error is "not found", we can augment it with grove info
 			if err.Error() == fmt.Sprintf("agent '%s' not found", agentName) {

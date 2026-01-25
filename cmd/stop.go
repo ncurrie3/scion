@@ -3,8 +3,10 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ptone/scion-agent/pkg/agent"
+	"github.com/ptone/scion-agent/pkg/hubclient"
 	"github.com/ptone/scion-agent/pkg/runtime"
 	"github.com/spf13/cobra"
 )
@@ -20,6 +22,17 @@ var stopCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		agentName := args[0]
 
+		// Check if Hub should be used
+		hubCtx, err := CheckHubAvailability(grovePath)
+		if err != nil {
+			return err
+		}
+
+		if hubCtx != nil {
+			return stopAgentViaHub(hubCtx, agentName)
+		}
+
+		// Local mode
 		effectiveProfile := profile
 		if effectiveProfile == "" {
 			effectiveProfile = agent.GetSavedProfile(agentName, grovePath)
@@ -46,6 +59,34 @@ var stopCmd = &cobra.Command{
 
 		return nil
 	},
+}
+
+func stopAgentViaHub(hubCtx *HubContext, agentName string) error {
+	PrintUsingHub(hubCtx.Endpoint)
+
+	fmt.Printf("Stopping agent '%s'...\n", agentName)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	if err := hubCtx.Client.Agents().Stop(ctx, agentName); err != nil {
+		return wrapHubError(fmt.Errorf("failed to stop agent via Hub: %w", err))
+	}
+
+	if stopRm {
+		opts := &hubclient.DeleteAgentOptions{
+			DeleteFiles:  true,
+			RemoveBranch: false,
+		}
+		if err := hubCtx.Client.Agents().Delete(ctx, agentName, opts); err != nil {
+			return wrapHubError(fmt.Errorf("agent stopped but failed to delete via Hub: %w", err))
+		}
+		fmt.Printf("Agent '%s' stopped and removed via Hub.\n", agentName)
+	} else {
+		fmt.Printf("Agent '%s' stopped via Hub.\n", agentName)
+	}
+
+	return nil
 }
 
 func init() {

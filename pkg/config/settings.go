@@ -64,7 +64,11 @@ type BucketConfig struct {
 //   - SCION_HUB_ENDPOINT: The Hub API endpoint URL (e.g., "https://hub.scion.dev")
 //   - SCION_HUB_TOKEN: Bearer token for Hub authentication
 //   - SCION_HUB_API_KEY: API key for Hub authentication (alternative to token)
+//   - SCION_HUB_ENABLED: Set to "true" to enable Hub integration
 type HubClientConfig struct {
+	// Enabled indicates whether Hub integration is enabled.
+	// When enabled and configured, agent operations are routed through the Hub.
+	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty" koanf:"enabled"`
 	// Endpoint is the Hub API endpoint URL
 	Endpoint string `json:"endpoint,omitempty" yaml:"endpoint,omitempty" koanf:"endpoint"`
 	// Token is a bearer token for authentication
@@ -501,6 +505,12 @@ func UpdateSetting(grovePath string, key string, value string, global bool) erro
 			current.Hub = &HubClientConfig{}
 		}
 		current.Hub.HostToken = value
+	case "hub.enabled":
+		if current.Hub == nil {
+			current.Hub = &HubClientConfig{}
+		}
+		enabled := value == "true"
+		current.Hub.Enabled = &enabled
 	default:
 		return fmt.Errorf("unknown or complex setting key: %s (manual edit recommended for registries)", key)
 	}
@@ -571,6 +581,14 @@ func GetSettingValue(s *Settings, key string) (string, error) {
 			return s.Hub.HostToken, nil
 		}
 		return "", nil
+	case "hub.enabled":
+		if s.Hub != nil && s.Hub.Enabled != nil {
+			if *s.Hub.Enabled {
+				return "true", nil
+			}
+			return "false", nil
+		}
+		return "", nil
 	}
 	return "", fmt.Errorf("unknown or complex setting key: %s", key)
 }
@@ -585,6 +603,13 @@ func GetSettingsMap(s *Settings) map[string]string {
 		m["bucket.prefix"] = s.Bucket.Prefix
 	}
 	if s.Hub != nil {
+		if s.Hub.Enabled != nil {
+			if *s.Hub.Enabled {
+				m["hub.enabled"] = "true"
+			} else {
+				m["hub.enabled"] = "false"
+			}
+		}
 		m["hub.endpoint"] = s.Hub.Endpoint
 		// Don't include secrets in the map by default
 		if s.Hub.Token != "" {
@@ -612,4 +637,10 @@ func (s *Settings) GetHubEndpoint() string {
 // IsHubConfigured returns true if Hub settings are configured.
 func (s *Settings) IsHubConfigured() bool {
 	return s.Hub != nil && s.Hub.Endpoint != ""
+}
+
+// IsHubEnabled returns true if Hub integration is explicitly enabled.
+// Returns false if not configured or explicitly disabled.
+func (s *Settings) IsHubEnabled() bool {
+	return s.Hub != nil && s.Hub.Enabled != nil && *s.Hub.Enabled
 }

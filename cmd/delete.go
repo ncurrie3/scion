@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ptone/scion-agent/pkg/agent"
 	"github.com/ptone/scion-agent/pkg/config"
+	"github.com/ptone/scion-agent/pkg/hubclient"
 	"github.com/ptone/scion-agent/pkg/runtime"
 	"github.com/ptone/scion-agent/pkg/util"
 	"github.com/spf13/cobra"
@@ -38,7 +40,19 @@ var deleteCmd = &cobra.Command{
 		if preserveBranch && !util.IsGitRepoDir(projectDir) {
 			fmt.Println("Warning: --preserve-branch used outside a git repository; this flag has no effect.")
 		}
+
+		// Check if Hub should be used
+		hubCtx, err := CheckHubAvailability(grovePath)
+		if err != nil {
+			return err
+		}
+
 		if deleteStopped {
+			// --stopped flag with Hub is not yet supported
+			if hubCtx != nil {
+				return fmt.Errorf("--stopped flag is not yet supported when using Hub integration\n\nTo delete stopped agents locally, use: scion --no-hub delete --stopped")
+			}
+
 			rt := runtime.GetRuntime(grovePath, profile)
 			mgr := agent.NewManager(rt)
 			agents, err := mgr.List(context.Background(), nil)
@@ -89,6 +103,12 @@ var deleteCmd = &cobra.Command{
 
 		agentName := args[0]
 
+		// Use Hub if available
+		if hubCtx != nil {
+			return deleteAgentViaHub(hubCtx, agentName)
+		}
+
+		// Local mode
 		effectiveProfile := profile
 		if effectiveProfile == "" {
 			effectiveProfile = agent.GetSavedRuntime(agentName, grovePath)
@@ -128,6 +148,27 @@ var deleteCmd = &cobra.Command{
 		fmt.Printf("Agent '%s' deleted.\n", agentName)
 		return nil
 	},
+}
+
+func deleteAgentViaHub(hubCtx *HubContext, agentName string) error {
+	PrintUsingHub(hubCtx.Endpoint)
+
+	fmt.Printf("Deleting agent '%s'...\n", agentName)
+
+	opts := &hubclient.DeleteAgentOptions{
+		DeleteFiles:  true,
+		RemoveBranch: !preserveBranch,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	if err := hubCtx.Client.Agents().Delete(ctx, agentName, opts); err != nil {
+		return wrapHubError(fmt.Errorf("failed to delete agent via Hub: %w", err))
+	}
+
+	fmt.Printf("Agent '%s' deleted via Hub.\n", agentName)
+	return nil
 }
 
 var preserveBranch bool

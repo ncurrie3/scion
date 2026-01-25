@@ -3,9 +3,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/ptone/scion-agent/pkg/agent"
 	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/ptone/scion-agent/pkg/hubclient"
 	"github.com/ptone/scion-agent/pkg/runtime"
 	"github.com/spf13/cobra"
 )
@@ -20,6 +22,17 @@ The agent will be created from a template.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		agentName := args[0]
 
+		// Check if Hub should be used
+		hubCtx, err := CheckHubAvailability(grovePath)
+		if err != nil {
+			return err
+		}
+
+		if hubCtx != nil {
+			return createAgentViaHub(hubCtx, agentName)
+		}
+
+		// Local mode
 		effectiveProfile := profile
 		if effectiveProfile == "" {
 			effectiveProfile = agent.GetSavedProfile(agentName, grovePath)
@@ -58,6 +71,44 @@ The agent will be created from a template.`,
 		fmt.Printf("Agent '%s' created successfully.\n", agentName)
 		return nil
 	},
+}
+
+func createAgentViaHub(hubCtx *HubContext, agentName string) error {
+	PrintUsingHub(hubCtx.Endpoint)
+
+	// Build create request
+	// Note: We need to get the grove ID from Hub for this grove
+	// For now, we'll need to look it up or require registration first
+	req := &hubclient.CreateAgentRequest{
+		Name:     agentName,
+		Template: templateName,
+		Branch:   branch,
+	}
+
+	if agentImage != "" {
+		req.Config = &hubclient.AgentConfig{
+			Image: agentImage,
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	resp, err := hubCtx.Client.Agents().Create(ctx, req)
+	if err != nil {
+		return wrapHubError(fmt.Errorf("failed to create agent via Hub: %w", err))
+	}
+
+	fmt.Printf("Agent '%s' created via Hub.\n", agentName)
+	if resp.Agent != nil {
+		fmt.Printf("Agent ID: %s\n", resp.Agent.AgentID)
+		fmt.Printf("Status: %s\n", resp.Agent.Status)
+	}
+	for _, w := range resp.Warnings {
+		fmt.Printf("Warning: %s\n", w)
+	}
+
+	return nil
 }
 
 func init() {
