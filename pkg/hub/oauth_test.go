@@ -17,35 +17,43 @@ func TestOAuthConfig_IsConfigured(t *testing.T) {
 			expected: false,
 		},
 		{
-			name: "google configured",
+			name: "web google configured",
 			config: OAuthConfig{
-				Google: OAuthProviderConfig{
-					ClientID:     "google-client-id",
-					ClientSecret: "google-secret",
+				Web: OAuthClientConfig{
+					Google: OAuthProviderConfig{
+						ClientID:     "google-client-id",
+						ClientSecret: "google-secret",
+					},
 				},
 			},
 			expected: true,
 		},
 		{
-			name: "github configured",
+			name: "cli github configured",
 			config: OAuthConfig{
-				GitHub: OAuthProviderConfig{
-					ClientID:     "github-client-id",
-					ClientSecret: "github-secret",
+				CLI: OAuthClientConfig{
+					GitHub: OAuthProviderConfig{
+						ClientID:     "github-client-id",
+						ClientSecret: "github-secret",
+					},
 				},
 			},
 			expected: true,
 		},
 		{
-			name: "both configured",
+			name: "both web and cli configured",
 			config: OAuthConfig{
-				Google: OAuthProviderConfig{
-					ClientID:     "google-client-id",
-					ClientSecret: "google-secret",
+				Web: OAuthClientConfig{
+					Google: OAuthProviderConfig{
+						ClientID:     "web-google-client-id",
+						ClientSecret: "web-google-secret",
+					},
 				},
-				GitHub: OAuthProviderConfig{
-					ClientID:     "github-client-id",
-					ClientSecret: "github-secret",
+				CLI: OAuthClientConfig{
+					GitHub: OAuthProviderConfig{
+						ClientID:     "cli-github-client-id",
+						ClientSecret: "cli-github-secret",
+					},
 				},
 			},
 			expected: true,
@@ -63,13 +71,17 @@ func TestOAuthConfig_IsConfigured(t *testing.T) {
 
 func TestOAuthConfig_IsProviderConfigured(t *testing.T) {
 	config := OAuthConfig{
-		Google: OAuthProviderConfig{
-			ClientID:     "google-client-id",
-			ClientSecret: "google-secret",
+		Web: OAuthClientConfig{
+			Google: OAuthProviderConfig{
+				ClientID:     "google-client-id",
+				ClientSecret: "google-secret",
+			},
 		},
-		GitHub: OAuthProviderConfig{
-			ClientID: "github-client-id",
-			// Missing secret
+		CLI: OAuthClientConfig{
+			GitHub: OAuthProviderConfig{
+				ClientID: "github-client-id",
+				// Missing secret
+			},
 		},
 	}
 
@@ -77,8 +89,8 @@ func TestOAuthConfig_IsProviderConfigured(t *testing.T) {
 		provider string
 		expected bool
 	}{
-		{"google", true},
-		{"github", false}, // missing secret
+		{"google", true},  // configured in web
+		{"github", false}, // missing secret in cli
 		{"unknown", false},
 	}
 
@@ -93,13 +105,15 @@ func TestOAuthConfig_IsProviderConfigured(t *testing.T) {
 
 func TestOAuthService_GetAuthorizationURL(t *testing.T) {
 	config := OAuthConfig{
-		Google: OAuthProviderConfig{
-			ClientID:     "google-client-id",
-			ClientSecret: "google-secret",
-		},
-		GitHub: OAuthProviderConfig{
-			ClientID:     "github-client-id",
-			ClientSecret: "github-secret",
+		CLI: OAuthClientConfig{
+			Google: OAuthProviderConfig{
+				ClientID:     "google-client-id",
+				ClientSecret: "google-secret",
+			},
+			GitHub: OAuthProviderConfig{
+				ClientID:     "github-client-id",
+				ClientSecret: "github-secret",
+			},
 		},
 	}
 
@@ -172,33 +186,20 @@ func TestOAuthService_NotConfigured(t *testing.T) {
 
 func TestOAuthConfig_ClientTypeConfigs(t *testing.T) {
 	tests := []struct {
-		name           string
-		config         OAuthConfig
-		webConfigured  bool
-		cliConfigured  bool
-		webGoogleID    string
-		cliGoogleID    string
+		name          string
+		config        OAuthConfig
+		webConfigured bool
+		cliConfigured bool
+		webGoogleID   string
+		cliGoogleID   string
 	}{
 		{
-			name:           "empty config",
-			config:         OAuthConfig{},
-			webConfigured:  false,
-			cliConfigured:  false,
-			webGoogleID:    "",
-			cliGoogleID:    "",
-		},
-		{
-			name: "legacy config only - falls back for both",
-			config: OAuthConfig{
-				Google: OAuthProviderConfig{
-					ClientID:     "legacy-google-id",
-					ClientSecret: "legacy-secret",
-				},
-			},
-			webConfigured:  true,
-			cliConfigured:  true,
-			webGoogleID:    "legacy-google-id",
-			cliGoogleID:    "legacy-google-id",
+			name:          "empty config",
+			config:        OAuthConfig{},
+			webConfigured: false,
+			cliConfigured: false,
+			webGoogleID:   "",
+			cliGoogleID:   "",
 		},
 		{
 			name: "web-specific config only",
@@ -210,10 +211,10 @@ func TestOAuthConfig_ClientTypeConfigs(t *testing.T) {
 					},
 				},
 			},
-			webConfigured:  true,
-			cliConfigured:  false,
-			webGoogleID:    "web-google-id",
-			cliGoogleID:    "",
+			webConfigured: true,
+			cliConfigured: false,
+			webGoogleID:   "web-google-id",
+			cliGoogleID:   "",
 		},
 		{
 			name: "cli-specific config only",
@@ -225,10 +226,10 @@ func TestOAuthConfig_ClientTypeConfigs(t *testing.T) {
 					},
 				},
 			},
-			webConfigured:  false,
-			cliConfigured:  true,
-			webGoogleID:    "",
-			cliGoogleID:    "cli-google-id",
+			webConfigured: false,
+			cliConfigured: true,
+			webGoogleID:   "",
+			cliGoogleID:   "cli-google-id",
 		},
 		{
 			name: "separate web and cli configs",
@@ -246,48 +247,29 @@ func TestOAuthConfig_ClientTypeConfigs(t *testing.T) {
 					},
 				},
 			},
-			webConfigured:  true,
-			cliConfigured:  true,
-			webGoogleID:    "web-google-id",
-			cliGoogleID:    "cli-google-id",
-		},
-		{
-			name: "legacy with cli override",
-			config: OAuthConfig{
-				Google: OAuthProviderConfig{
-					ClientID:     "legacy-google-id",
-					ClientSecret: "legacy-secret",
-				},
-				CLI: OAuthClientConfig{
-					Google: OAuthProviderConfig{
-						ClientID:     "cli-google-id",
-						ClientSecret: "cli-secret",
-					},
-				},
-			},
-			webConfigured:  true,
-			cliConfigured:  true,
-			webGoogleID:    "legacy-google-id", // Web falls back to legacy
-			cliGoogleID:    "cli-google-id",    // CLI uses specific config
+			webConfigured: true,
+			cliConfigured: true,
+			webGoogleID:   "web-google-id",
+			cliGoogleID:   "cli-google-id",
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			webCfg := tc.config.GetWebConfig()
-			cliCfg := tc.config.GetCLIConfig()
+			webCfg := tc.config.Web
+			cliCfg := tc.config.CLI
 
 			if webCfg.IsConfigured() != tc.webConfigured {
-				t.Errorf("GetWebConfig().IsConfigured() = %v, want %v", webCfg.IsConfigured(), tc.webConfigured)
+				t.Errorf("Web.IsConfigured() = %v, want %v", webCfg.IsConfigured(), tc.webConfigured)
 			}
 			if cliCfg.IsConfigured() != tc.cliConfigured {
-				t.Errorf("GetCLIConfig().IsConfigured() = %v, want %v", cliCfg.IsConfigured(), tc.cliConfigured)
+				t.Errorf("CLI.IsConfigured() = %v, want %v", cliCfg.IsConfigured(), tc.cliConfigured)
 			}
 			if webCfg.Google.ClientID != tc.webGoogleID {
-				t.Errorf("GetWebConfig().Google.ClientID = %q, want %q", webCfg.Google.ClientID, tc.webGoogleID)
+				t.Errorf("Web.Google.ClientID = %q, want %q", webCfg.Google.ClientID, tc.webGoogleID)
 			}
 			if cliCfg.Google.ClientID != tc.cliGoogleID {
-				t.Errorf("GetCLIConfig().Google.ClientID = %q, want %q", cliCfg.Google.ClientID, tc.cliGoogleID)
+				t.Errorf("CLI.Google.ClientID = %q, want %q", cliCfg.Google.ClientID, tc.cliGoogleID)
 			}
 		})
 	}

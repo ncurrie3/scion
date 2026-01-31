@@ -53,62 +53,23 @@ func (c *OAuthClientConfig) GetProvider(provider string) OAuthProviderConfig {
 }
 
 // OAuthConfig holds configuration for all OAuth providers.
-// Supports both legacy single-config format and new per-client-type format.
+// Web and CLI use separate OAuth clients due to different redirect URI requirements.
 type OAuthConfig struct {
-	// Legacy: single config used for both web and CLI
-	Google OAuthProviderConfig
-	GitHub OAuthProviderConfig
-
-	// Client-type specific configs
+	// Web OAuth client settings (for web frontend flows).
 	Web OAuthClientConfig
+	// CLI OAuth client settings (for CLI localhost callback flows).
 	CLI OAuthClientConfig
 }
 
 // IsConfigured returns true if at least one OAuth provider is configured.
 func (c *OAuthConfig) IsConfigured() bool {
-	return c.Google.ClientID != "" || c.GitHub.ClientID != "" ||
-		c.Web.IsConfigured() || c.CLI.IsConfigured()
+	return c.Web.IsConfigured() || c.CLI.IsConfigured()
 }
 
 // IsProviderConfigured returns true if the specified provider is configured
 // for at least one client type.
 func (c *OAuthConfig) IsProviderConfigured(provider string) bool {
-	switch provider {
-	case "google":
-		return (c.Google.ClientID != "" && c.Google.ClientSecret != "") ||
-			(c.Web.Google.ClientID != "" && c.Web.Google.ClientSecret != "") ||
-			(c.CLI.Google.ClientID != "" && c.CLI.Google.ClientSecret != "")
-	case "github":
-		return (c.GitHub.ClientID != "" && c.GitHub.ClientSecret != "") ||
-			(c.Web.GitHub.ClientID != "" && c.Web.GitHub.ClientSecret != "") ||
-			(c.CLI.GitHub.ClientID != "" && c.CLI.GitHub.ClientSecret != "")
-	default:
-		return false
-	}
-}
-
-// GetWebConfig returns the OAuth config for web clients.
-// Falls back to legacy config if web-specific config is not set.
-func (c *OAuthConfig) GetWebConfig() OAuthClientConfig {
-	if c.Web.IsConfigured() {
-		return c.Web
-	}
-	return OAuthClientConfig{
-		Google: c.Google,
-		GitHub: c.GitHub,
-	}
-}
-
-// GetCLIConfig returns the OAuth config for CLI clients.
-// Falls back to legacy config if CLI-specific config is not set.
-func (c *OAuthConfig) GetCLIConfig() OAuthClientConfig {
-	if c.CLI.IsConfigured() {
-		return c.CLI
-	}
-	return OAuthClientConfig{
-		Google: c.Google,
-		GitHub: c.GitHub,
-	}
+	return c.Web.IsProviderConfigured(provider) || c.CLI.IsProviderConfigured(provider)
 }
 
 // ClientType represents the type of client (web or CLI).
@@ -141,12 +102,11 @@ func NewOAuthService(config OAuthConfig) *OAuthService {
 func (s *OAuthService) getClientConfig(clientType OAuthClientType) OAuthClientConfig {
 	switch clientType {
 	case OAuthClientTypeWeb:
-		return s.config.GetWebConfig()
+		return s.config.Web
 	case OAuthClientTypeCLI:
-		return s.config.GetCLIConfig()
+		return s.config.CLI
 	default:
-		// Default to CLI for backward compatibility
-		return s.config.GetCLIConfig()
+		return OAuthClientConfig{}
 	}
 }
 
@@ -204,7 +164,7 @@ func (s *OAuthService) GetAuthorizationURLForClient(clientType OAuthClientType, 
 
 // getGoogleAuthURL generates a Google OAuth authorization URL using the default config.
 func (s *OAuthService) getGoogleAuthURL(callbackURL, state string) (string, error) {
-	return s.getGoogleAuthURLWithConfig(s.config.GetCLIConfig().Google, callbackURL, state)
+	return s.getGoogleAuthURLWithConfig(s.config.CLI.Google, callbackURL, state)
 }
 
 // getGoogleAuthURLWithConfig generates a Google OAuth authorization URL with the given config.
@@ -228,7 +188,7 @@ func (s *OAuthService) getGoogleAuthURLWithConfig(cfg OAuthProviderConfig, callb
 
 // getGitHubAuthURL generates a GitHub OAuth authorization URL using the default config.
 func (s *OAuthService) getGitHubAuthURL(callbackURL, state string) (string, error) {
-	return s.getGitHubAuthURLWithConfig(s.config.GetCLIConfig().GitHub, callbackURL, state)
+	return s.getGitHubAuthURLWithConfig(s.config.CLI.GitHub, callbackURL, state)
 }
 
 // getGitHubAuthURLWithConfig generates a GitHub OAuth authorization URL with the given config.
@@ -270,7 +230,7 @@ func (s *OAuthService) ExchangeCodeForClient(ctx context.Context, clientType OAu
 
 // exchangeGoogleCode exchanges a Google authorization code for user info.
 func (s *OAuthService) exchangeGoogleCode(ctx context.Context, code, callbackURL string) (*OAuthUserInfo, error) {
-	return s.exchangeGoogleCodeWithConfig(ctx, s.config.GetCLIConfig().Google, code, callbackURL)
+	return s.exchangeGoogleCodeWithConfig(ctx, s.config.CLI.Google, code, callbackURL)
 }
 
 // exchangeGoogleCodeWithConfig exchanges a Google authorization code for user info using the given config.
@@ -296,7 +256,7 @@ func (s *OAuthService) exchangeGoogleCodeWithConfig(ctx context.Context, cfg OAu
 
 // exchangeGitHubCode exchanges a GitHub authorization code for user info.
 func (s *OAuthService) exchangeGitHubCode(ctx context.Context, code, callbackURL string) (*OAuthUserInfo, error) {
-	return s.exchangeGitHubCodeWithConfig(ctx, s.config.GetCLIConfig().GitHub, code, callbackURL)
+	return s.exchangeGitHubCodeWithConfig(ctx, s.config.CLI.GitHub, code, callbackURL)
 }
 
 // exchangeGitHubCodeWithConfig exchanges a GitHub authorization code for user info using the given config.
@@ -366,7 +326,7 @@ func (s *OAuthService) exchangeCodeForToken(ctx context.Context, tokenURL, clien
 
 // exchangeGitHubCodeForToken exchanges a GitHub authorization code for an access token.
 func (s *OAuthService) exchangeGitHubCodeForToken(ctx context.Context, code, callbackURL string) (*tokenResponse, error) {
-	return s.exchangeGitHubCodeForTokenWithConfig(ctx, s.config.GetCLIConfig().GitHub, code, callbackURL)
+	return s.exchangeGitHubCodeForTokenWithConfig(ctx, s.config.CLI.GitHub, code, callbackURL)
 }
 
 // exchangeGitHubCodeForTokenWithConfig exchanges a GitHub authorization code for an access token using the given config.

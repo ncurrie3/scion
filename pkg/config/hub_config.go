@@ -99,45 +99,12 @@ type OAuthClientConfig struct {
 }
 
 // OAuthConfig holds OAuth provider configurations.
-// Supports both legacy single-config format and new per-client-type format.
+// Web and CLI use separate OAuth clients due to different redirect URI requirements.
 type OAuthConfig struct {
-	// Legacy: Google OAuth settings (used if Web/CLI not specified).
-	Google OAuthProviderConfig `json:"google" yaml:"google" koanf:"google"`
-	// Legacy: GitHub OAuth settings (used if Web/CLI not specified).
-	GitHub OAuthProviderConfig `json:"github" yaml:"github" koanf:"github"`
-
 	// Web OAuth client settings (for web frontend flows).
 	Web OAuthClientConfig `json:"web" yaml:"web" koanf:"web"`
 	// CLI OAuth client settings (for CLI localhost callback flows).
 	CLI OAuthClientConfig `json:"cli" yaml:"cli" koanf:"cli"`
-}
-
-// GetWebConfig returns the OAuth config for web clients.
-// Falls back to legacy config if web-specific config is not set.
-func (c *OAuthConfig) GetWebConfig() OAuthClientConfig {
-	// If web-specific config is set, use it
-	if c.Web.Google.ClientID != "" || c.Web.GitHub.ClientID != "" {
-		return c.Web
-	}
-	// Fall back to legacy config
-	return OAuthClientConfig{
-		Google: c.Google,
-		GitHub: c.GitHub,
-	}
-}
-
-// GetCLIConfig returns the OAuth config for CLI clients.
-// Falls back to legacy config if CLI-specific config is not set.
-func (c *OAuthConfig) GetCLIConfig() OAuthClientConfig {
-	// If CLI-specific config is set, use it
-	if c.CLI.Google.ClientID != "" || c.CLI.GitHub.ClientID != "" {
-		return c.CLI
-	}
-	// Fall back to legacy config
-	return OAuthClientConfig{
-		Google: c.Google,
-		GitHub: c.GitHub,
-	}
 }
 
 // GlobalConfig holds the complete server configuration.
@@ -244,17 +211,12 @@ func LoadGlobalConfig(configPath string) (*GlobalConfig, error) {
 		"auth.devToken":     defaults.Auth.Token,
 		"auth.devTokenFile": defaults.Auth.TokenFile,
 		// OAuth defaults (empty by default, loaded from env/config)
-		// Legacy single-config format
-		"oauth.google.clientId":     "",
-		"oauth.google.clientSecret": "",
-		"oauth.github.clientId":     "",
-		"oauth.github.clientSecret": "",
-		// Web client-specific OAuth config
+		// Web OAuth client config
 		"oauth.web.google.clientId":     "",
 		"oauth.web.google.clientSecret": "",
 		"oauth.web.github.clientId":     "",
 		"oauth.web.github.clientSecret": "",
-		// CLI client-specific OAuth config
+		// CLI OAuth client config
 		"oauth.cli.google.clientId":     "",
 		"oauth.cli.google.clientSecret": "",
 		"oauth.cli.github.clientId":     "",

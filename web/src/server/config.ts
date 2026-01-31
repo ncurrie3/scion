@@ -132,10 +132,10 @@ export function loadConfig(): AppConfig {
     },
 
     auth: {
-      googleClientId: getEnvString('GOOGLE_CLIENT_ID', ''),
-      googleClientSecret: getEnvString('GOOGLE_CLIENT_SECRET', ''),
-      githubClientId: getEnvString('GITHUB_CLIENT_ID', ''),
-      githubClientSecret: getEnvString('GITHUB_CLIENT_SECRET', ''),
+      googleClientId: getEnvString('SCION_SERVER_OAUTH_WEB_GOOGLE_CLIENTID', ''),
+      googleClientSecret: getEnvString('SCION_SERVER_OAUTH_WEB_GOOGLE_CLIENTSECRET', ''),
+      githubClientId: getEnvString('SCION_SERVER_OAUTH_WEB_GITHUB_CLIENTID', ''),
+      githubClientSecret: getEnvString('SCION_SERVER_OAUTH_WEB_GITHUB_CLIENTSECRET', ''),
       authorizedDomains: getEnvStringArray('AUTHORIZED_DOMAINS', []),
     },
   };
