@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -326,36 +327,51 @@ func syncTemplateToHub(hubCtx *HubContext, name, localPath, scope, harnessType s
 		// Fetch existing file manifest to compare hashes
 		fmt.Printf("Checking for changes in template '%s'...\n", name)
 		downloadResp, err := hubCtx.Client.Templates().RequestDownloadURLs(ctx, templateID)
+
+		// Check if the template exists but has no files (e.g., due to previous storage misconfiguration)
+		// In this case, treat it like a new template that needs all files uploaded
+		templateNeedsFullUpload := false
 		if err != nil {
-			return fmt.Errorf("failed to get existing template manifest: %w", err)
-		}
-
-		// Build map of remote file hashes
-		remoteHashes := make(map[string]string)
-		for _, f := range downloadResp.Files {
-			remoteHashes[f.Path] = f.Hash
-		}
-
-		// Compare local vs remote - find changed/new files
-		for _, localFile := range files {
-			remoteHash, exists := remoteHashes[localFile.Path]
-			if !exists || remoteHash != localFile.Hash {
-				filesToUpload = append(filesToUpload, hubclient.FileUploadRequest{
-					Path: localFile.Path,
-					Size: localFile.Size,
-				})
+			// Check for "template has no files" error - this means the template record exists
+			// but was never finalized (e.g., storage was misconfigured during initial sync)
+			if strings.Contains(err.Error(), "template has no files") {
+				fmt.Printf("Template '%s' exists but has no files (possibly from incomplete previous sync).\n", name)
+				fmt.Printf("Uploading all files...\n")
+				templateNeedsFullUpload = true
+				filesToUpload = fileReqs
+			} else {
+				return fmt.Errorf("failed to get existing template manifest: %w", err)
 			}
 		}
 
-		// Check if anything changed
-		if len(filesToUpload) == 0 {
-			fmt.Printf("Template '%s' is already up to date.\n", name)
-			fmt.Printf("  ID: %s\n", templateID)
-			fmt.Printf("  Content Hash: %s\n", existingTemplate.ContentHash)
-			return nil
-		}
+		if !templateNeedsFullUpload {
+			// Build map of remote file hashes
+			remoteHashes := make(map[string]string)
+			for _, f := range downloadResp.Files {
+				remoteHashes[f.Path] = f.Hash
+			}
 
-		fmt.Printf("Found %d changed file(s), updating template...\n", len(filesToUpload))
+			// Compare local vs remote - find changed/new files
+			for _, localFile := range files {
+				remoteHash, exists := remoteHashes[localFile.Path]
+				if !exists || remoteHash != localFile.Hash {
+					filesToUpload = append(filesToUpload, hubclient.FileUploadRequest{
+						Path: localFile.Path,
+						Size: localFile.Size,
+					})
+				}
+			}
+
+			// Check if anything changed
+			if len(filesToUpload) == 0 {
+				fmt.Printf("Template '%s' is already up to date.\n", name)
+				fmt.Printf("  ID: %s\n", templateID)
+				fmt.Printf("  Content Hash: %s\n", existingTemplate.ContentHash)
+				return nil
+			}
+
+			fmt.Printf("Found %d changed file(s), updating template...\n", len(filesToUpload))
+		}
 	} else {
 		// Create new template - upload all files
 		fmt.Printf("Creating template '%s' in Hub...\n", name)
