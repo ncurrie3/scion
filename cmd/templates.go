@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -27,20 +28,165 @@ var templatesCmd = &cobra.Command{
 var templatesListCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List available templates",
-	RunE: func(cmd *cobra.Command, args []string) error {
-		templates, err := config.ListTemplates()
-		if err != nil {
-			return err
-		}
+	RunE:  runTemplateList,
+}
 
-		w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
-		fmt.Fprintln(w, "NAME\tPATH")
-		for _, t := range templates {
-			fmt.Fprintf(w, "%s\t%s\n", t.Name, t.Path)
+func runTemplateList(cmd *cobra.Command, args []string) error {
+	// Get local templates grouped by scope
+	localGlobal, localGrove, err := config.ListTemplatesGrouped()
+	if err != nil {
+		return err
+	}
+
+	// Check if Hub is available (suppress errors, just skip Hub if not available)
+	var hubCtx *HubContext
+	var hubGlobal, hubGrove []hubclient.Template
+	hubAvailable := false
+
+	if !noHub {
+		hubCtx, _ = CheckHubAvailabilityWithOptions(grovePath, true)
+		if hubCtx != nil {
+			hubAvailable = true
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			// Get grove ID for filtering grove-scoped templates
+			groveID, _ := GetGroveID(hubCtx)
+
+			// Fetch global templates from Hub
+			globalResp, err := hubCtx.Client.Templates().List(ctx, &hubclient.ListTemplatesOptions{
+				Scope:  "global",
+				Status: "active",
+			})
+			if err == nil {
+				hubGlobal = globalResp.Templates
+			}
+
+			// Fetch grove templates from Hub (if we have a grove ID)
+			if groveID != "" {
+				groveResp, err := hubCtx.Client.Templates().List(ctx, &hubclient.ListTemplatesOptions{
+					Scope:   "grove",
+					GroveID: groveID,
+					Status:  "active",
+				})
+				if err == nil {
+					hubGrove = groveResp.Templates
+				}
+			}
+
+			// Sort hub templates by name for consistent output
+			sort.Slice(hubGlobal, func(i, j int) bool {
+				return hubGlobal[i].Name < hubGlobal[j].Name
+			})
+			sort.Slice(hubGrove, func(i, j int) bool {
+				return hubGrove[i].Name < hubGrove[j].Name
+			})
 		}
-		w.Flush()
-		return nil
-	},
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+
+	if hubAvailable {
+		// Hub mode: group by local/hub, then by global/grove
+		printTemplateListHubMode(w, localGlobal, localGrove, hubGlobal, hubGrove)
+	} else {
+		// Local mode: group by global/grove
+		printTemplateListLocalMode(w, localGlobal, localGrove)
+	}
+
+	w.Flush()
+	return nil
+}
+
+func printTemplateListLocalMode(w *tabwriter.Writer, global, grove []*config.Template) {
+	hasGlobal := len(global) > 0
+	hasGrove := len(grove) > 0
+
+	if !hasGlobal && !hasGrove {
+		fmt.Fprintln(w, "No templates found.")
+		return
+	}
+
+	if hasGlobal {
+		fmt.Fprintln(w, "Global Templates:")
+		fmt.Fprintln(w, "  NAME\tPATH")
+		for _, t := range global {
+			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Path)
+		}
+	}
+
+	if hasGrove {
+		if hasGlobal {
+			fmt.Fprintln(w)
+		}
+		fmt.Fprintln(w, "Grove Templates:")
+		fmt.Fprintln(w, "  NAME\tPATH")
+		for _, t := range grove {
+			fmt.Fprintf(w, "  %s\t%s\n", t.Name, t.Path)
+		}
+	}
+}
+
+func printTemplateListHubMode(w *tabwriter.Writer, localGlobal, localGrove []*config.Template, hubGlobal, hubGrove []hubclient.Template) {
+	hasLocalGlobal := len(localGlobal) > 0
+	hasLocalGrove := len(localGrove) > 0
+	hasHubGlobal := len(hubGlobal) > 0
+	hasHubGrove := len(hubGrove) > 0
+
+	hasLocal := hasLocalGlobal || hasLocalGrove
+	hasHub := hasHubGlobal || hasHubGrove
+
+	if !hasLocal && !hasHub {
+		fmt.Fprintln(w, "No templates found.")
+		return
+	}
+
+	// Local section
+	if hasLocal {
+		fmt.Fprintln(w, "Local Templates:")
+		if hasLocalGlobal {
+			fmt.Fprintln(w, "  Global:")
+			fmt.Fprintln(w, "    NAME\tPATH")
+			for _, t := range localGlobal {
+				fmt.Fprintf(w, "    %s\t%s\n", t.Name, t.Path)
+			}
+		}
+		if hasLocalGrove {
+			if hasLocalGlobal {
+				fmt.Fprintln(w)
+			}
+			fmt.Fprintln(w, "  Grove:")
+			fmt.Fprintln(w, "    NAME\tPATH")
+			for _, t := range localGrove {
+				fmt.Fprintf(w, "    %s\t%s\n", t.Name, t.Path)
+			}
+		}
+	}
+
+	// Hub section
+	if hasHub {
+		if hasLocal {
+			fmt.Fprintln(w)
+		}
+		fmt.Fprintln(w, "Hub Templates:")
+		if hasHubGlobal {
+			fmt.Fprintln(w, "  Global:")
+			fmt.Fprintln(w, "    NAME\tID")
+			for _, t := range hubGlobal {
+				fmt.Fprintf(w, "    %s\t%s\n", t.Name, t.ID)
+			}
+		}
+		if hasHubGrove {
+			if hasHubGlobal {
+				fmt.Fprintln(w)
+			}
+			fmt.Fprintln(w, "  Grove:")
+			fmt.Fprintln(w, "    NAME\tID")
+			for _, t := range hubGrove {
+				fmt.Fprintf(w, "    %s\t%s\n", t.Name, t.ID)
+			}
+		}
+	}
 }
 
 var templatesShowCmd = &cobra.Command{
@@ -693,7 +839,7 @@ func init() {
 	templateCmd.AddCommand(&cobra.Command{
 		Use:   "list",
 		Short: "List available templates",
-		RunE:  templatesListCmd.RunE,
+		RunE:  runTemplateList,
 	})
 	templateCmd.AddCommand(&cobra.Command{
 		Use:   "show <name>",

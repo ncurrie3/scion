@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/ptone/scion-agent/pkg/api"
 	"github.com/ptone/scion-agent/pkg/util"
@@ -13,8 +14,9 @@ import (
 )
 
 type Template struct {
-	Name string
-	Path string
+	Name  string
+	Path  string
+	Scope string // "global" or "grove"
 }
 
 func (t *Template) LoadConfig() (*api.ScionConfig, error) {
@@ -288,11 +290,55 @@ func DeleteTemplate(name string, global bool) error {
 	return os.RemoveAll(templateDir)
 }
 
+// ListTemplatesGrouped returns templates grouped by scope (global and grove).
+// Unlike ListTemplates, this preserves the scope information and does not merge duplicates.
+func ListTemplatesGrouped() (global []*Template, grove []*Template, err error) {
+	// Helper to scan a directory for templates
+	scan := func(dir string, scope string) []*Template {
+		var templates []*Template
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			return nil
+		}
+		for _, e := range entries {
+			if e.IsDir() {
+				templates = append(templates, &Template{
+					Name:  e.Name(),
+					Path:  filepath.Join(dir, e.Name()),
+					Scope: scope,
+				})
+			}
+		}
+		return templates
+	}
+
+	// Scan global templates
+	if globalDir, err := GetGlobalTemplatesDir(); err == nil {
+		global = scan(globalDir, "global")
+	}
+
+	// Scan grove (project) templates
+	if projectDir, err := GetProjectTemplatesDir(); err == nil {
+		grove = scan(projectDir, "grove")
+	}
+
+	// Sort both lists by name for consistent output
+	sortTemplates := func(templates []*Template) {
+		sort.Slice(templates, func(i, j int) bool {
+			return templates[i].Name < templates[j].Name
+		})
+	}
+	sortTemplates(global)
+	sortTemplates(grove)
+
+	return global, grove, nil
+}
+
 func ListTemplates() ([]*Template, error) {
 	templates := make(map[string]*Template)
 
 	// Helper to scan a directory for templates
-	scan := func(dir string) {
+	scan := func(dir string, scope string) {
 		entries, err := os.ReadDir(dir)
 		if err != nil {
 			return
@@ -300,8 +346,9 @@ func ListTemplates() ([]*Template, error) {
 		for _, e := range entries {
 			if e.IsDir() {
 				templates[e.Name()] = &Template{
-					Name: e.Name(),
-					Path: filepath.Join(dir, e.Name()),
+					Name:  e.Name(),
+					Path:  filepath.Join(dir, e.Name()),
+					Scope: scope,
 				}
 			}
 		}
@@ -309,12 +356,12 @@ func ListTemplates() ([]*Template, error) {
 
 	// 1. Scan global templates (lower precedence in map)
 	if globalDir, err := GetGlobalTemplatesDir(); err == nil {
-		scan(globalDir)
+		scan(globalDir, "global")
 	}
 
 	// 2. Scan project templates (higher precedence)
 	if projectDir, err := GetProjectTemplatesDir(); err == nil {
-		scan(projectDir)
+		scan(projectDir, "grove")
 	}
 
 	var list []*Template
