@@ -11,6 +11,7 @@ import (
 	"github.com/ptone/scion-agent/pkg/api"
 	"github.com/ptone/scion-agent/pkg/harness"
 	"github.com/ptone/scion-agent/pkg/runtime"
+	"github.com/ptone/scion-agent/pkg/util"
 )
 
 type Manager interface {
@@ -67,13 +68,18 @@ func (m *AgentManager) Delete(ctx context.Context, agentID string, deleteFiles b
 	}
 
 	if containerExists {
+		util.Debugf("delete: starting runtime delete for container %s", targetID)
 		if err := m.Runtime.Delete(ctx, targetID); err != nil {
 			return false, fmt.Errorf("failed to delete container: %w", err)
 		}
+		util.Debugf("delete: runtime delete completed for container %s", targetID)
 	}
 
 	if deleteFiles {
-		return DeleteAgentFiles(agentID, grovePath, removeBranch)
+		util.Debugf("delete: starting filesystem cleanup for agent %s", agentID)
+		branchDeleted, err := DeleteAgentFiles(agentID, grovePath, removeBranch)
+		util.Debugf("delete: filesystem cleanup completed for agent %s", agentID)
+		return branchDeleted, err
 	}
 	return false, nil
 }
