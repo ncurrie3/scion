@@ -57,13 +57,21 @@ func DefaultControlChannelConfig() ControlChannelConfig {
 	}
 }
 
+// AgentLookup provides agent information for control channel operations.
+type AgentLookup interface {
+	// LookupContainerID returns the container ID for an agent by its slug/name.
+	// Returns empty string if not found or agent doesn't support attach.
+	LookupContainerID(ctx context.Context, slug string) (containerID string, err error)
+}
+
 // ControlChannelClient manages the WebSocket connection to the Hub.
 type ControlChannelClient struct {
-	config   ControlChannelConfig
-	conn     *wsprotocol.Connection
-	handlers http.Handler // Reuse existing HTTP handlers
-	streams  map[string]*StreamHandler
-	streamMu sync.RWMutex
+	config      ControlChannelConfig
+	conn        *wsprotocol.Connection
+	handlers    http.Handler  // Reuse existing HTTP handlers
+	agentLookup AgentLookup   // For looking up agent container IDs
+	streams     map[string]*StreamHandler
+	streamMu    sync.RWMutex
 
 	// Connection state
 	connected   bool
@@ -89,11 +97,12 @@ type StreamHandler struct {
 }
 
 // NewControlChannelClient creates a new control channel client.
-func NewControlChannelClient(config ControlChannelConfig, handlers http.Handler) *ControlChannelClient {
+func NewControlChannelClient(config ControlChannelConfig, handlers http.Handler, agentLookup AgentLookup) *ControlChannelClient {
 	return &ControlChannelClient{
-		config:   config,
-		handlers: handlers,
-		streams:  make(map[string]*StreamHandler),
+		config:      config,
+		handlers:    handlers,
+		agentLookup: agentLookup,
+		streams:     make(map[string]*StreamHandler),
 	}
 }
 
@@ -536,8 +545,7 @@ func (c *ControlChannelClient) handleStreamClose(data []byte) error {
 	return nil
 }
 
-// handlePTYStream handles a PTY stream.
-// This is a placeholder that will be fully implemented in Phase 5.
+// handlePTYStream handles a PTY stream by looking up the agent and starting a PTY session.
 func (c *ControlChannelClient) handlePTYStream(handler *StreamHandler, cols, rows int) {
 	slog.Info("PTY stream started via control channel",
 		"slug", handler.slug,
@@ -545,9 +553,30 @@ func (c *ControlChannelClient) handlePTYStream(handler *StreamHandler, cols, row
 		"rows", rows,
 	)
 
-	// PTY implementation will be added in Phase 5
-	// For now, just wait for close
-	<-handler.closeCh
+	// Look up the container ID for this agent
+	if c.agentLookup == nil {
+		slog.Error("PTY stream failed: no agent lookup configured", "slug", handler.slug)
+		c.CloseStream(handler.streamID, "agent lookup not configured", 500)
+		return
+	}
+
+	containerID, err := c.agentLookup.LookupContainerID(c.ctx, handler.slug)
+	if err != nil {
+		slog.Error("PTY stream failed: agent lookup error", "slug", handler.slug, "error", err)
+		c.CloseStream(handler.streamID, fmt.Sprintf("agent lookup failed: %v", err), 404)
+		return
+	}
+
+	if containerID == "" {
+		slog.Error("PTY stream failed: container not found", "slug", handler.slug)
+		c.CloseStream(handler.streamID, "container not found", 404)
+		return
+	}
+
+	slog.Debug("PTY stream found container", "slug", handler.slug, "containerID", containerID)
+
+	// Start the actual PTY session
+	c.handlePTYStreamWithAgent(handler, cols, rows, containerID)
 
 	slog.Info("PTY stream ended via control channel", "slug", handler.slug)
 }

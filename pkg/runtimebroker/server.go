@@ -395,7 +395,7 @@ func (s *Server) Start(ctx context.Context) error {
 					Debug:               s.config.Debug,
 				}
 
-				s.controlChannel = NewControlChannelClient(ccConfig, s.Handler())
+				s.controlChannel = NewControlChannelClient(ccConfig, s.Handler(), s)
 				go func() {
 					if err := s.controlChannel.Connect(ctx); err != nil {
 						slog.Error("Control channel error", "error", err)
@@ -470,6 +470,39 @@ func (s *Server) Shutdown(ctx context.Context) error {
 // This is useful for testing without starting a listener.
 func (s *Server) Handler() http.Handler {
 	return s.applyMiddleware(s.mux)
+}
+
+// LookupContainerID implements AgentLookup interface.
+// It looks up an agent by slug and returns its container ID.
+func (s *Server) LookupContainerID(ctx context.Context, slug string) (string, error) {
+	if s.manager == nil {
+		return "", fmt.Errorf("agent manager not available")
+	}
+
+	// Look up agent using List with filter by name
+	agents, err := s.manager.List(ctx, map[string]string{"scion.name": slug})
+	if err != nil {
+		return "", fmt.Errorf("failed to list agents: %w", err)
+	}
+
+	if len(agents) == 0 {
+		return "", fmt.Errorf("agent '%s' not found", slug)
+	}
+
+	agent := agents[0]
+
+	// Check if agent supports attach (has tmux)
+	if agent.Labels == nil || agent.Labels["scion.tmux"] != "true" {
+		return "", fmt.Errorf("agent '%s' does not support attach", slug)
+	}
+
+	// Get container ID
+	containerID := agent.Labels["scion.container.id"]
+	if containerID == "" {
+		containerID = agent.ID // Fall back to agent ID
+	}
+
+	return containerID, nil
 }
 
 // startCredentialWatcher starts a goroutine that watches for credential file changes.
@@ -619,7 +652,7 @@ func (s *Server) reinitializeHubServices(ctx context.Context, creds *brokercrede
 		}
 
 		s.mu.Lock()
-		s.controlChannel = NewControlChannelClient(ccConfig, s.Handler())
+		s.controlChannel = NewControlChannelClient(ccConfig, s.Handler(), s)
 		s.mu.Unlock()
 
 		go func() {
