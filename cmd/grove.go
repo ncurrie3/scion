@@ -136,13 +136,8 @@ func promptHubRegistration(isGlobal bool) error {
 		return nil // Silently skip if we can't load settings
 	}
 
-	// Check if Hub endpoint is configured (but not necessarily enabled)
-	if !settings.IsHubConfigured() {
-		return nil // No Hub endpoint configured, skip
-	}
-
-	// Skip if Hub is explicitly disabled
-	if settings.IsHubExplicitlyDisabled() {
+	// Only prompt if Hub is explicitly enabled (not just configured with an endpoint)
+	if !settings.IsHubEnabled() {
 		return nil
 	}
 
