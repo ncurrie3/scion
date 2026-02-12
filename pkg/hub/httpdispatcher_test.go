@@ -547,3 +547,123 @@ func TestHTTPAgentDispatcher_DispatchAgentCreate_WithoutGroveProviderPath(t *tes
 		t.Errorf("expected empty GrovePath for auto-provided broker, got '%s'", mockClient.lastCreateReq.GrovePath)
 	}
 }
+
+func TestHTTPAgentDispatcher_DispatchAgentProvision(t *testing.T) {
+	ctx := context.Background()
+	memStore := createTestStore(t)
+
+	// Create a runtime broker with an endpoint
+	broker := &store.RuntimeBroker{
+		ID:       "host-1",
+		Name:     "test-host",
+		Slug:     "test-host",
+		Endpoint: "http://localhost:9800",
+		Status:   store.BrokerStatusOnline,
+	}
+	if err := memStore.CreateRuntimeBroker(ctx, broker); err != nil {
+		t.Fatalf("failed to create runtime broker: %v", err)
+	}
+
+	mockClient := &mockRuntimeBrokerClient{}
+	dispatcher := NewHTTPAgentDispatcherWithClient(memStore, mockClient, false)
+
+	agent := &store.Agent{
+		ID:              "agent-1",
+		Name:            "test-agent",
+		Slug:            "test-agent",
+		GroveID:         "grove-1",
+		RuntimeBrokerID: "host-1",
+		AppliedConfig: &store.AgentAppliedConfig{
+			Harness: "claude",
+		},
+	}
+
+	err := dispatcher.DispatchAgentProvision(ctx, agent)
+	if err != nil {
+		t.Fatalf("DispatchAgentProvision failed: %v", err)
+	}
+
+	if !mockClient.createCalled {
+		t.Fatal("expected CreateAgent to be called for provision")
+	}
+
+	// Verify ProvisionOnly flag is set in the request
+	if !mockClient.lastCreateReq.ProvisionOnly {
+		t.Error("expected ProvisionOnly to be true in the request")
+	}
+
+	// Verify it sent to the correct endpoint
+	if mockClient.lastEndpoint != "http://localhost:9800" {
+		t.Errorf("expected endpoint 'http://localhost:9800', got '%s'", mockClient.lastEndpoint)
+	}
+
+	// Verify broker ID was passed
+	if mockClient.lastBrokerID != "host-1" {
+		t.Errorf("expected brokerID 'host-1', got '%s'", mockClient.lastBrokerID)
+	}
+}
+
+func TestHTTPAgentDispatcher_DispatchAgentProvision_NoBroker(t *testing.T) {
+	ctx := context.Background()
+	memStore := createTestStore(t)
+
+	mockClient := &mockRuntimeBrokerClient{}
+	dispatcher := NewHTTPAgentDispatcherWithClient(memStore, mockClient, false)
+
+	agent := &store.Agent{
+		ID:              "agent-1",
+		Name:            "test-agent",
+		Slug:            "test-agent",
+		RuntimeBrokerID: "", // No broker assigned
+	}
+
+	err := dispatcher.DispatchAgentProvision(ctx, agent)
+	if err == nil {
+		t.Fatal("expected error when no runtime broker is assigned")
+	}
+
+	if mockClient.createCalled {
+		t.Fatal("CreateAgent should not be called when no broker is assigned")
+	}
+}
+
+func TestHTTPAgentDispatcher_DispatchAgentCreate_DoesNotSetProvisionOnly(t *testing.T) {
+	ctx := context.Background()
+	memStore := createTestStore(t)
+
+	// Create a runtime broker
+	broker := &store.RuntimeBroker{
+		ID:       "host-1",
+		Name:     "test-host",
+		Slug:     "test-host",
+		Endpoint: "http://localhost:9800",
+		Status:   store.BrokerStatusOnline,
+	}
+	if err := memStore.CreateRuntimeBroker(ctx, broker); err != nil {
+		t.Fatalf("failed to create runtime broker: %v", err)
+	}
+
+	mockClient := &mockRuntimeBrokerClient{}
+	dispatcher := NewHTTPAgentDispatcherWithClient(memStore, mockClient, false)
+
+	agent := &store.Agent{
+		ID:              "agent-1",
+		Name:            "test-agent",
+		Slug:            "test-agent",
+		GroveID:         "grove-1",
+		RuntimeBrokerID: "host-1",
+		AppliedConfig: &store.AgentAppliedConfig{
+			Task: "do something",
+		},
+	}
+
+	err := dispatcher.DispatchAgentCreate(ctx, agent)
+	if err != nil {
+		t.Fatalf("DispatchAgentCreate failed: %v", err)
+	}
+
+	// Verify ProvisionOnly is NOT set for regular create
+	if mockClient.lastCreateReq.ProvisionOnly {
+		t.Error("expected ProvisionOnly to be false for regular DispatchAgentCreate")
+	}
+}

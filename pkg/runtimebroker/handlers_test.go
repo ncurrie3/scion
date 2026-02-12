@@ -459,3 +459,156 @@ func TestCreateAgentWithoutHubCredentials(t *testing.T) {
 		t.Error("expected SCION_AGENT_ID to not be set when no id provided")
 	}
 }
+
+// provisionCapturingManager tracks whether Provision vs Start was called.
+type provisionCapturingManager struct {
+	mockManager
+	provisionCalled bool
+	startCalled     bool
+	lastOpts        api.StartOptions
+}
+
+func (m *provisionCapturingManager) Provision(ctx context.Context, opts api.StartOptions) (*api.ScionConfig, error) {
+	m.provisionCalled = true
+	m.lastOpts = opts
+	return &api.ScionConfig{Harness: "claude"}, nil
+}
+
+func (m *provisionCapturingManager) Start(ctx context.Context, opts api.StartOptions) (*api.AgentInfo, error) {
+	m.startCalled = true
+	m.lastOpts = opts
+	return m.mockManager.Start(ctx, opts)
+}
+
+func newTestServerWithProvisionCapture() (*Server, *provisionCapturingManager) {
+	cfg := DefaultServerConfig()
+	cfg.BrokerID = "test-broker-id"
+	cfg.BrokerName = "test-host"
+
+	mgr := &provisionCapturingManager{}
+	rt := &runtime.MockRuntime{}
+
+	return New(cfg, mgr, rt), mgr
+}
+
+func TestCreateAgentProvisionOnly(t *testing.T) {
+	srv, mgr := newTestServerWithProvisionCapture()
+
+	body := `{
+		"name": "provisioned-agent",
+		"id": "agent-uuid-456",
+		"slug": "provisioned-agent",
+		"provisionOnly": true,
+		"config": {"template": "claude"}
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/agents", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
+	}
+
+	// Verify Provision was called, not Start
+	if !mgr.provisionCalled {
+		t.Error("expected Provision to be called")
+	}
+	if mgr.startCalled {
+		t.Error("expected Start NOT to be called for provision-only")
+	}
+
+	var resp CreateAgentResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if !resp.Created {
+		t.Error("expected Created to be true")
+	}
+
+	if resp.Agent == nil {
+		t.Fatal("expected agent to be present")
+	}
+
+	// Agent status should be "created" (not "running")
+	if resp.Agent.Status != AgentStatusCreated {
+		t.Errorf("expected status '%s', got '%s'", AgentStatusCreated, resp.Agent.Status)
+	}
+
+	// ID and slug should be passed through
+	if resp.Agent.ID != "agent-uuid-456" {
+		t.Errorf("expected ID 'agent-uuid-456', got '%s'", resp.Agent.ID)
+	}
+	if resp.Agent.Slug != "provisioned-agent" {
+		t.Errorf("expected slug 'provisioned-agent', got '%s'", resp.Agent.Slug)
+	}
+}
+
+func TestCreateAgentFullStart(t *testing.T) {
+	srv, mgr := newTestServerWithProvisionCapture()
+
+	body := `{
+		"name": "running-agent",
+		"config": {"template": "claude", "task": "do something"}
+	}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/agents", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusCreated {
+		t.Fatalf("expected status %d, got %d: %s", http.StatusCreated, w.Code, w.Body.String())
+	}
+
+	// Verify Start was called, not Provision
+	if mgr.provisionCalled {
+		t.Error("expected Provision NOT to be called for full start")
+	}
+	if !mgr.startCalled {
+		t.Error("expected Start to be called")
+	}
+
+	var resp CreateAgentResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp.Agent == nil {
+		t.Fatal("expected agent to be present")
+	}
+
+	// Agent status should not be "created" since it was fully started
+	if resp.Agent.Status == AgentStatusCreated {
+		t.Error("expected status to NOT be 'created' for fully started agent")
+	}
+}
+
+func TestStartAgentEndpoint(t *testing.T) {
+	srv := newTestServer()
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/agents/test-agent-1/start", nil)
+	w := httptest.NewRecorder()
+
+	srv.Handler().ServeHTTP(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Errorf("expected status %d, got %d: %s", http.StatusAccepted, w.Code, w.Body.String())
+	}
+
+	var resp map[string]interface{}
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if resp["status"] != "accepted" {
+		t.Errorf("expected status 'accepted', got '%v'", resp["status"])
+	}
+
+	// Should have an agent in the response
+	if resp["agent"] == nil {
+		t.Error("expected agent info in start response")
+	}
+}
