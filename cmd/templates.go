@@ -1105,6 +1105,9 @@ func init() {
 	templatesCmd.AddCommand(templatesDeleteCmd)
 	templatesCmd.AddCommand(templatesUpdateDefaultCmd)
 
+	// Import command
+	templatesCmd.AddCommand(templatesImportCmd)
+
 	// Hub-only commands
 	templatesCmd.AddCommand(templatesSyncCmd)
 	templatesCmd.AddCommand(templatesPushCmd)
@@ -1121,6 +1124,13 @@ func init() {
 	// Flags for clone command
 	templatesCloneCmd.Flags().Bool("local", false, "Only search local filesystem for source")
 	templatesCloneCmd.Flags().Bool("hub", false, "Only search Hub for source")
+
+	// Flags for import command
+	templatesImportCmd.Flags().StringP("harness", "H", "", "Force harness type (claude, gemini)")
+	templatesImportCmd.Flags().String("name", "", "Override template name")
+	templatesImportCmd.Flags().Bool("force", false, "Overwrite existing templates")
+	templatesImportCmd.Flags().Bool("dry-run", false, "Preview import without writing files")
+	templatesImportCmd.Flags().Bool("all", false, "Import all discovered agents")
 
 	// Flags for create command
 	templatesCreateCmd.Flags().StringP("harness", "H", "", "Harness type (e.g. gemini, claude)")
@@ -1204,4 +1214,17 @@ func init() {
 	}
 	pullAlias.Flags().String("to", "", "Destination path for downloaded template")
 	templateCmd.AddCommand(pullAlias)
+
+	importAlias := &cobra.Command{
+		Use:   "import <source>",
+		Short: "Import agent definitions as scion templates",
+		Args:  cobra.ExactArgs(1),
+		RunE:  runTemplateImport,
+	}
+	importAlias.Flags().StringP("harness", "H", "", "Force harness type (claude, gemini)")
+	importAlias.Flags().String("name", "", "Override template name")
+	importAlias.Flags().Bool("force", false, "Overwrite existing templates")
+	importAlias.Flags().Bool("dry-run", false, "Preview import without writing files")
+	importAlias.Flags().Bool("all", false, "Import all discovered agents")
+	templateCmd.AddCommand(importAlias)
 }
