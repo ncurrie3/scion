@@ -437,6 +437,12 @@ func startAgentViaHub(hubCtx *HubContext, agentName, task string, resume bool) e
 		return wrapHubError(fmt.Errorf("failed to start agent via Hub: %w", err))
 	}
 
+	// Advance watermark to the hub-assigned creation time so this agent
+	// won't trigger a sync warning on the next 'scion ls'.
+	if resp.Agent != nil && !resp.Agent.Created.IsZero() {
+		hubsync.UpdateLastSyncedAt(hubCtx.GrovePath, resp.Agent.Created, hubCtx.IsGlobal)
+	}
+
 	// Print info line when broker was auto-resolved (not explicitly specified)
 	if !isJSONOutput() {
 		printAutoResolvedBroker(ctx, hubCtx, runtimeBrokerID, req.RuntimeBrokerID, resp)

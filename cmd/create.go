@@ -24,6 +24,7 @@ import (
 	"github.com/ptone/scion-agent/pkg/agent"
 	"github.com/ptone/scion-agent/pkg/api"
 	"github.com/ptone/scion-agent/pkg/hubclient"
+	"github.com/ptone/scion-agent/pkg/hubsync"
 	"github.com/ptone/scion-agent/pkg/runtime"
 	"github.com/spf13/cobra"
 )
@@ -156,6 +157,12 @@ func createAgentViaHub(hubCtx *HubContext, agentName string, task string) error 
 	resp, err := createAgentWithBrokerResolution(ctx, hubCtx, groveID, req)
 	if err != nil {
 		return wrapHubError(fmt.Errorf("failed to create agent via Hub: %w", err))
+	}
+
+	// Advance watermark to the hub-assigned creation time so this agent
+	// won't trigger a sync warning on the next 'scion ls'.
+	if resp.Agent != nil && !resp.Agent.Created.IsZero() {
+		hubsync.UpdateLastSyncedAt(hubCtx.GrovePath, resp.Agent.Created, hubCtx.IsGlobal)
 	}
 
 	// Print info line when broker was auto-resolved (not explicitly specified)

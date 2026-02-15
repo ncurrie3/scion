@@ -52,6 +52,7 @@ type SyncResult struct {
 	InSync     []string   // Agents already in sync
 	Pending    []AgentRef // Hub agents in pending status (not yet started, no local artifacts expected)
 	RemoteOnly []AgentRef // Hub agents created by other brokers after our last sync (no action needed)
+	ServerTime time.Time  // Hub server time from the list response (for clock-skew-safe watermarks)
 }
 
 // IsInSync returns true if there are no agents to sync.
@@ -68,7 +69,8 @@ func (r *SyncResult) ExcludeAgent(agentName string) *SyncResult {
 	}
 
 	result := &SyncResult{
-		InSync: r.InSync,
+		InSync:     r.InSync,
+		ServerTime: r.ServerTime,
 	}
 
 	for _, name := range r.ToRegister {
@@ -364,10 +366,7 @@ func EnsureHubReady(grovePath string, opts EnsureHubReadyOptions) (*HubContext, 
 		}
 	} else {
 		// Already in sync — update the watermark to keep it current
-		now := time.Now().UTC().Format(time.RFC3339)
-		if err := config.UpdateSetting(hubCtx.GrovePath, "hub.lastSyncedAt", now, hubCtx.IsGlobal); err != nil {
-			debugf("Warning: failed to save lastSyncedAt: %v", err)
-		}
+		UpdateLastSyncedAt(hubCtx.GrovePath, syncResult.ServerTime, hubCtx.IsGlobal)
 	}
 
 	return hubCtx, nil
@@ -390,6 +389,21 @@ func checkBrokerAvailability(ctx context.Context, hubCtx *HubContext) (bool, err
 	}
 
 	return false, nil
+}
+
+// UpdateLastSyncedAt updates the lastSyncedAt watermark in grove settings.
+// Uses hubTime if non-zero (preferred), otherwise falls back to local time.
+func UpdateLastSyncedAt(grovePath string, hubTime time.Time, isGlobal bool) {
+	var ts time.Time
+	if !hubTime.IsZero() {
+		ts = hubTime.UTC()
+	} else {
+		ts = time.Now().UTC()
+	}
+	formatted := ts.Format(time.RFC3339Nano)
+	if err := config.UpdateSetting(grovePath, "hub.lastSyncedAt", formatted, isGlobal); err != nil {
+		debugf("Warning: failed to save lastSyncedAt: %v", err)
+	}
 }
 
 // CompareAgents compares local agents with Hub agents for the current broker.
@@ -419,6 +433,8 @@ func CompareAgents(ctx context.Context, hubCtx *HubContext) (*SyncResult, error)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list Hub agents: %w", err)
 	}
+
+	result.ServerTime = resp.ServerTime
 
 	debugf("Hub agents found: %d total", len(resp.Agents))
 	for _, a := range resp.Agents {
@@ -450,7 +466,7 @@ func CompareAgents(ctx context.Context, hubCtx *HubContext) (*SyncResult, error)
 	// Parse lastSyncedAt from settings to distinguish remote-created agents from locally-deleted ones.
 	var lastSyncedAt time.Time
 	if hubCtx.Settings.Hub != nil && hubCtx.Settings.Hub.LastSyncedAt != "" {
-		if parsed, err := time.Parse(time.RFC3339, hubCtx.Settings.Hub.LastSyncedAt); err == nil {
+		if parsed, err := time.Parse(time.RFC3339Nano, hubCtx.Settings.Hub.LastSyncedAt); err == nil {
 			lastSyncedAt = parsed
 			debugf("lastSyncedAt: %s", lastSyncedAt.Format(time.RFC3339))
 		} else {
@@ -612,10 +628,7 @@ func ExecuteSync(ctx context.Context, hubCtx *HubContext, result *SyncResult, au
 	}
 
 	// Update lastSyncedAt watermark after successful sync
-	now := time.Now().UTC().Format(time.RFC3339)
-	if err := config.UpdateSetting(hubCtx.GrovePath, "hub.lastSyncedAt", now, hubCtx.IsGlobal); err != nil {
-		debugf("Warning: failed to save lastSyncedAt: %v", err)
-	}
+	UpdateLastSyncedAt(hubCtx.GrovePath, result.ServerTime, hubCtx.IsGlobal)
 
 	return nil
 }

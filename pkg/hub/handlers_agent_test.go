@@ -1114,3 +1114,73 @@ func TestCreateAgent_CreatorName_UserEmail(t *testing.T) {
 	require.NotNil(t, persisted.AppliedConfig)
 	assert.Equal(t, "dev@localhost", persisted.AppliedConfig.CreatorName)
 }
+
+func TestListAgents_ServerTimeIncluded(t *testing.T) {
+	srv, s := testServer(t)
+	ctx := context.Background()
+
+	// Create a grove and agent
+	grove := &store.Grove{
+		ID:   "grove-servertime",
+		Name: "ServerTime Grove",
+		Slug: "servertime-grove",
+	}
+	require.NoError(t, s.CreateGrove(ctx, grove))
+
+	agent := &store.Agent{
+		ID:      "agent-servertime",
+		Slug:    "agent-servertime-slug",
+		Name:    "ServerTime Agent",
+		GroveID: grove.ID,
+		Status:  store.AgentStatusRunning,
+	}
+	require.NoError(t, s.CreateAgent(ctx, agent))
+
+	before := time.Now().UTC()
+
+	// List agents
+	rec := doRequest(t, srv, http.MethodGet, "/api/v1/agents?groveId="+grove.ID, nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	after := time.Now().UTC()
+
+	var resp ListAgentsResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+
+	// ServerTime should be non-zero and between before/after
+	assert.False(t, resp.ServerTime.IsZero(), "ServerTime should be non-zero")
+	assert.True(t, !resp.ServerTime.Before(before.Add(-time.Second)),
+		"ServerTime %v should not be before request start %v", resp.ServerTime, before)
+	assert.True(t, !resp.ServerTime.After(after.Add(time.Second)),
+		"ServerTime %v should not be after request end %v", resp.ServerTime, after)
+}
+
+func TestListGroveAgents_ServerTimeIncluded(t *testing.T) {
+	srv, s := testServer(t)
+	ctx := context.Background()
+
+	// Create a grove
+	grove := &store.Grove{
+		ID:   "grove-servertime-g",
+		Name: "ServerTime Grove G",
+		Slug: "servertime-grove-g",
+	}
+	require.NoError(t, s.CreateGrove(ctx, grove))
+
+	before := time.Now().UTC()
+
+	// List grove agents
+	rec := doRequest(t, srv, http.MethodGet, fmt.Sprintf("/api/v1/groves/%s/agents", grove.ID), nil)
+	require.Equal(t, http.StatusOK, rec.Code)
+
+	after := time.Now().UTC()
+
+	var resp ListAgentsResponse
+	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &resp))
+
+	assert.False(t, resp.ServerTime.IsZero(), "ServerTime should be non-zero in grove-scoped list")
+	assert.True(t, !resp.ServerTime.Before(before.Add(-time.Second)),
+		"ServerTime should not be before request start")
+	assert.True(t, !resp.ServerTime.After(after.Add(time.Second)),
+		"ServerTime should not be after request end")
+}

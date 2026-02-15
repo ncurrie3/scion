@@ -91,8 +91,9 @@ type ListAgentsOptions struct {
 
 // ListAgentsResponse is the response from listing agents.
 type ListAgentsResponse struct {
-	Agents []Agent
-	Page   apiclient.PageResult
+	Agents     []Agent
+	ServerTime time.Time // Hub server timestamp for clock-skew-safe sync watermarks
+	Page       apiclient.PageResult
 }
 
 // CreateAgentRequest is the request body for creating an agent.
@@ -176,9 +177,10 @@ func (s *agentService) List(ctx context.Context, opts *ListAgentsOptions) (*List
 	}
 
 	type listResponse struct {
-		Agents     []Agent `json:"agents"`
-		NextCursor string  `json:"nextCursor,omitempty"`
-		TotalCount int     `json:"totalCount,omitempty"`
+		Agents     []Agent   `json:"agents"`
+		NextCursor string    `json:"nextCursor,omitempty"`
+		TotalCount int       `json:"totalCount,omitempty"`
+		ServerTime time.Time `json:"serverTime"`
 	}
 
 	result, err := apiclient.DecodeResponse[listResponse](resp)
@@ -187,7 +189,8 @@ func (s *agentService) List(ctx context.Context, opts *ListAgentsOptions) (*List
 	}
 
 	return &ListAgentsResponse{
-		Agents: result.Agents,
+		Agents:     result.Agents,
+		ServerTime: result.ServerTime,
 		Page: apiclient.PageResult{
 			NextCursor: result.NextCursor,
 			TotalCount: result.TotalCount,

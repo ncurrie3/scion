@@ -142,6 +142,7 @@ type ListAgentsResponse struct {
 	Agents     []store.Agent `json:"agents"`
 	NextCursor string        `json:"nextCursor,omitempty"`
 	TotalCount int           `json:"totalCount"`
+	ServerTime time.Time     `json:"serverTime"`
 }
 
 type CreateAgentRequest struct {
@@ -222,6 +223,7 @@ func (s *Server) listAgents(w http.ResponseWriter, r *http.Request) {
 		Agents:     result.Items,
 		NextCursor: result.NextCursor,
 		TotalCount: result.TotalCount,
+		ServerTime: time.Now().UTC(),
 	})
 }
 
@@ -1627,6 +1629,7 @@ func (s *Server) listGroveAgents(w http.ResponseWriter, r *http.Request, groveID
 		Agents:     result.Items,
 		NextCursor: result.NextCursor,
 		TotalCount: result.TotalCount,
+		ServerTime: time.Now().UTC(),
 	})
 }
 

@@ -17,7 +17,11 @@ package hubsync
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
+
+	"github.com/ptone/scion-agent/pkg/config"
 )
 
 func TestSyncResult_IsInSync(t *testing.T) {
@@ -522,5 +526,145 @@ func TestGroveMatch_Fields(t *testing.T) {
 	}
 	if match.GitRemote != "github.com/test/repo" {
 		t.Errorf("Expected GitRemote 'github.com/test/repo', got %s", match.GitRemote)
+	}
+}
+
+func TestUpdateLastSyncedAt_UsesHubTime(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "hubsync-watermark-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Use a specific hub time that's clearly different from time.Now()
+	hubTime := time.Date(2025, 6, 15, 10, 30, 45, 123456789, time.UTC)
+
+	UpdateLastSyncedAt(tmpDir, hubTime, false)
+
+	// Read back the stored value
+	settings, err := config.LoadSettings(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to load settings: %v", err)
+	}
+
+	if settings.Hub == nil || settings.Hub.LastSyncedAt == "" {
+		t.Fatal("Expected hub.lastSyncedAt to be set")
+	}
+
+	stored := settings.Hub.LastSyncedAt
+
+	// Verify the stored value matches the hub time, not the local time
+	parsed, err := time.Parse(time.RFC3339Nano, stored)
+	if err != nil {
+		t.Fatalf("Failed to parse stored timestamp %q: %v", stored, err)
+	}
+
+	if !parsed.Equal(hubTime) {
+		t.Errorf("Stored time %v does not match hub time %v", parsed, hubTime)
+	}
+}
+
+func TestUpdateLastSyncedAt_FallbackToLocalTime(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "hubsync-watermark-fallback-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	before := time.Now().UTC()
+	UpdateLastSyncedAt(tmpDir, time.Time{}, false) // zero time = fallback
+	after := time.Now().UTC()
+
+	settings, err := config.LoadSettings(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to load settings: %v", err)
+	}
+
+	if settings.Hub == nil || settings.Hub.LastSyncedAt == "" {
+		t.Fatal("Expected hub.lastSyncedAt to be set")
+	}
+
+	parsed, err := time.Parse(time.RFC3339Nano, settings.Hub.LastSyncedAt)
+	if err != nil {
+		t.Fatalf("Failed to parse stored timestamp: %v", err)
+	}
+
+	if parsed.Before(before.Truncate(time.Nanosecond)) || parsed.After(after.Add(time.Millisecond)) {
+		t.Errorf("Fallback time %v should be between %v and %v", parsed, before, after)
+	}
+}
+
+func TestUpdateLastSyncedAt_NanoPrecision(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "hubsync-watermark-nano-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Use a time with sub-second precision
+	hubTime := time.Date(2025, 6, 15, 10, 30, 45, 123456789, time.UTC)
+	UpdateLastSyncedAt(tmpDir, hubTime, false)
+
+	settings, err := config.LoadSettings(tmpDir)
+	if err != nil {
+		t.Fatalf("Failed to load settings: %v", err)
+	}
+
+	stored := settings.Hub.LastSyncedAt
+
+	// Verify the stored value uses nanosecond precision (contains '.' for fractional seconds)
+	if !strings.Contains(stored, ".") {
+		t.Errorf("Expected RFC3339Nano format with fractional seconds, got %q", stored)
+	}
+
+	// Verify it round-trips correctly
+	parsed, err := time.Parse(time.RFC3339Nano, stored)
+	if err != nil {
+		t.Fatalf("Failed to parse stored timestamp: %v", err)
+	}
+	if !parsed.Equal(hubTime) {
+		t.Errorf("Round-trip failed: got %v, want %v", parsed, hubTime)
+	}
+}
+
+func TestSyncResult_ServerTime(t *testing.T) {
+	serverTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+
+	result := &SyncResult{
+		ToRegister: []string{"agent1"},
+		InSync:     []string{"agent2"},
+		ServerTime: serverTime,
+	}
+
+	// Verify ServerTime is preserved
+	if !result.ServerTime.Equal(serverTime) {
+		t.Errorf("ServerTime = %v, want %v", result.ServerTime, serverTime)
+	}
+
+	// Verify ServerTime survives ExcludeAgent
+	filtered := result.ExcludeAgent("agent1")
+	if !filtered.ServerTime.Equal(serverTime) {
+		t.Errorf("After ExcludeAgent, ServerTime = %v, want %v", filtered.ServerTime, serverTime)
+	}
+}
+
+func TestRFC3339Nano_BackwardCompatible(t *testing.T) {
+	// Verify that RFC3339Nano can parse both old (RFC3339) and new (RFC3339Nano) formats
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"RFC3339 format", "2025-06-15T10:30:00Z"},
+		{"RFC3339Nano format", "2025-06-15T10:30:00.123456789Z"},
+		{"RFC3339 with offset", "2025-06-15T10:30:00+00:00"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := time.Parse(time.RFC3339Nano, tt.input)
+			if err != nil {
+				t.Errorf("RFC3339Nano failed to parse %q: %v", tt.input, err)
+			}
+		})
 	}
 }
