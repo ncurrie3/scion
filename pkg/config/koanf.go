@@ -110,6 +110,25 @@ func LoadSettingsKoanf(grovePath string) (*Settings, error) {
 		}, "."), nil)
 	}
 
+	// In v1 format, broker identity fields are stored under server.broker.*
+	// (snake_case), but the legacy Settings struct expects them at hub.brokerId
+	// (camelCase). Remap so LoadSettingsKoanf produces correct HubClientConfig.
+	if k.Exists("server.broker.broker_id") && !k.Exists("hub.brokerId") {
+		_ = k.Load(confmap.Provider(map[string]interface{}{
+			"hub.brokerId": k.String("server.broker.broker_id"),
+		}, "."), nil)
+	}
+	if k.Exists("server.broker.broker_token") && !k.Exists("hub.brokerToken") {
+		_ = k.Load(confmap.Provider(map[string]interface{}{
+			"hub.brokerToken": k.String("server.broker.broker_token"),
+		}, "."), nil)
+	}
+	if k.Exists("server.broker.broker_nickname") && !k.Exists("hub.brokerNickname") {
+		_ = k.Load(confmap.Provider(map[string]interface{}{
+			"hub.brokerNickname": k.String("server.broker.broker_nickname"),
+		}, "."), nil)
+	}
+
 	// Unmarshal into Settings struct
 	settings := &Settings{
 		Runtimes:  make(map[string]RuntimeConfig),

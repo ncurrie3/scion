@@ -949,6 +949,22 @@ func convertVersionedToLegacy(vs *VersionedSettings) *Settings {
 		}
 	}
 
+	// Map broker identity fields from v1 Server.Broker back to legacy Hub
+	if vs.Server != nil && vs.Server.Broker != nil {
+		if s.Hub == nil {
+			s.Hub = &HubClientConfig{}
+		}
+		if vs.Server.Broker.BrokerID != "" {
+			s.Hub.BrokerID = vs.Server.Broker.BrokerID
+		}
+		if vs.Server.Broker.BrokerToken != "" {
+			s.Hub.BrokerToken = vs.Server.Broker.BrokerToken
+		}
+		if vs.Server.Broker.BrokerNickname != "" {
+			s.Hub.BrokerNickname = vs.Server.Broker.BrokerNickname
+		}
+	}
+
 	// Convert CLI
 	if vs.CLI != nil {
 		s.CLI = &CLIConfig{

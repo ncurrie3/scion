@@ -503,6 +503,13 @@ func TestConvertVersionedToLegacy(t *testing.T) {
 			AutoHelp:            boolPtr(true),
 			InteractiveDisabled: boolPtr(false),
 		},
+		Server: &V1ServerConfig{
+			Broker: &V1BrokerConfig{
+				BrokerID:       "broker-456",
+				BrokerToken:    "broker-token-xyz",
+				BrokerNickname: "my-broker",
+			},
+		},
 		Runtimes: map[string]V1RuntimeConfig{
 			"docker": {Type: "docker", Host: "tcp://localhost:2375"},
 		},
@@ -537,6 +544,11 @@ func TestConvertVersionedToLegacy(t *testing.T) {
 	assert.True(t, *legacy.Hub.Enabled)
 	assert.Empty(t, legacy.Hub.Token) // Not in v1
 
+	// Broker fields from Server.Broker should be mapped to Hub
+	assert.Equal(t, "broker-456", legacy.Hub.BrokerID)
+	assert.Equal(t, "broker-token-xyz", legacy.Hub.BrokerToken)
+	assert.Equal(t, "my-broker", legacy.Hub.BrokerNickname)
+
 	// CLI — InteractiveDisabled should not be in legacy
 	require.NotNil(t, legacy.CLI)
 	assert.True(t, *legacy.CLI.AutoHelp)
@@ -549,6 +561,25 @@ func TestConvertVersionedToLegacy(t *testing.T) {
 
 	// Profiles — new fields should be dropped
 	assert.Equal(t, "docker", legacy.Profiles["local"].Runtime)
+}
+
+func TestConvertVersionedToLegacy_BrokerWithoutHub(t *testing.T) {
+	// When Hub is nil but Server.Broker has fields, Hub should be created
+	vs := &VersionedSettings{
+		SchemaVersion: "1",
+		Server: &V1ServerConfig{
+			Broker: &V1BrokerConfig{
+				BrokerID:    "broker-789",
+				BrokerToken: "token-abc",
+			},
+		},
+	}
+
+	legacy := convertVersionedToLegacy(vs)
+
+	require.NotNil(t, legacy.Hub, "Hub should be created when Server.Broker has fields")
+	assert.Equal(t, "broker-789", legacy.Hub.BrokerID)
+	assert.Equal(t, "token-abc", legacy.Hub.BrokerToken)
 }
 
 func TestConvertVersionedToLegacy_Nil(t *testing.T) {

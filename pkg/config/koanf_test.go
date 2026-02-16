@@ -389,6 +389,95 @@ func TestLoadSettingsKoanfV1GroveIDFromEnv(t *testing.T) {
 	}
 }
 
+func TestLoadSettingsKoanfV1BrokerFields(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	originalHome := os.Getenv("HOME")
+	defer os.Setenv("HOME", originalHome)
+	os.Setenv("HOME", tmpDir)
+
+	groveDir := filepath.Join(tmpDir, "my-grove")
+	groveScionDir := filepath.Join(groveDir, ".scion")
+	if err := os.MkdirAll(groveScionDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create a v1 format settings file where broker fields are under server.broker
+	v1Settings := `schema_version: "1"
+hub:
+  enabled: true
+  endpoint: "http://localhost:9810"
+server:
+  broker:
+    broker_id: "test-broker-uuid"
+    broker_token: "test-broker-token"
+    broker_nickname: "my-test-broker"
+`
+	if err := os.WriteFile(filepath.Join(groveScionDir, "settings.yaml"), []byte(v1Settings), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := LoadSettingsKoanf(groveScionDir)
+	if err != nil {
+		t.Fatalf("LoadSettingsKoanf failed: %v", err)
+	}
+
+	// The v1 server.broker fields should be remapped to legacy hub fields
+	if s.Hub == nil {
+		t.Fatal("expected Hub config to be set")
+	}
+	if s.Hub.BrokerID != "test-broker-uuid" {
+		t.Errorf("expected BrokerID 'test-broker-uuid', got '%s'", s.Hub.BrokerID)
+	}
+	if s.Hub.BrokerToken != "test-broker-token" {
+		t.Errorf("expected BrokerToken 'test-broker-token', got '%s'", s.Hub.BrokerToken)
+	}
+	if s.Hub.BrokerNickname != "my-test-broker" {
+		t.Errorf("expected BrokerNickname 'my-test-broker', got '%s'", s.Hub.BrokerNickname)
+	}
+}
+
+func TestLoadSettingsKoanfV1BrokerFieldsNoOverrideExisting(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	originalHome := os.Getenv("HOME")
+	defer os.Setenv("HOME", originalHome)
+	os.Setenv("HOME", tmpDir)
+
+	groveDir := filepath.Join(tmpDir, "my-grove")
+	groveScionDir := filepath.Join(groveDir, ".scion")
+	if err := os.MkdirAll(groveScionDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// When both legacy hub.brokerId and v1 server.broker.broker_id exist,
+	// the legacy hub.brokerId should take precedence (not be overridden)
+	settings := `hub:
+  brokerId: "legacy-broker-id"
+  brokerToken: "legacy-token"
+server:
+  broker:
+    broker_id: "v1-broker-id"
+    broker_token: "v1-token"
+`
+	if err := os.WriteFile(filepath.Join(groveScionDir, "settings.yaml"), []byte(settings), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	s, err := LoadSettingsKoanf(groveScionDir)
+	if err != nil {
+		t.Fatalf("LoadSettingsKoanf failed: %v", err)
+	}
+
+	// Legacy hub fields should take precedence
+	if s.Hub.BrokerID != "legacy-broker-id" {
+		t.Errorf("expected BrokerID 'legacy-broker-id', got '%s'", s.Hub.BrokerID)
+	}
+	if s.Hub.BrokerToken != "legacy-token" {
+		t.Errorf("expected BrokerToken 'legacy-token', got '%s'", s.Hub.BrokerToken)
+	}
+}
+
 func TestLoadSettingsKoanfWithJSONFallback(t *testing.T) {
 	tmpDir := t.TempDir()
 
