@@ -1,0 +1,173 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://scion.dev/schemas/agent/v1.json",
+  "title": "Scion Agent Configuration",
+  "description": "Configuration for a Scion agent template (scion-agent.yaml).",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema URI for IDE support."
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "1",
+      "description": "Agent config schema version.",
+      "x-since": "1"
+    },
+    "harness_config": {
+      "type": "string",
+      "description": "Name of the harness config entry to use (key in harness_configs map). Falls back to 'harness' field for legacy compat."
+    },
+    "harness": {
+      "type": "string",
+      "description": "Legacy: harness type name. Deprecated in favor of harness_config.",
+      "x-deprecated-by": "1"
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "volumes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/volumeMount" }
+    },
+    "resources": { "$ref": "#/$defs/resourceSpec" },
+    "max_turns": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum number of LLM turns before the agent is stopped.",
+      "x-since": "1"
+    },
+    "max_duration": {
+      "type": "string",
+      "pattern": "^[0-9]+(s|m|h)$",
+      "description": "Maximum wall-clock duration before the agent is stopped (e.g., '2h', '30m').",
+      "x-since": "1"
+    },
+    "services": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/serviceSpec" }
+    },
+    "image": {
+      "type": "string",
+      "description": "Override container image."
+    },
+    "user": {
+      "type": "string",
+      "description": "Override unix user."
+    },
+    "model": {
+      "type": "string",
+      "description": "LLM model identifier."
+    },
+    "args": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "detached": {
+      "type": "boolean",
+      "description": "Run agent in detached (background) mode. Defaults to true."
+    },
+    "config_dir": {
+      "type": "string",
+      "description": "Agent config directory."
+    },
+    "command_args": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Additional command arguments."
+    },
+    "gemini": {
+      "type": "object",
+      "description": "Gemini-specific configuration.",
+      "properties": {
+        "auth_selected_type": { "type": "string" }
+      }
+    },
+    "kubernetes": {
+      "type": "object",
+      "description": "Kubernetes-specific configuration.",
+      "properties": {
+        "context": { "type": "string" },
+        "namespace": { "type": "string" },
+        "runtime_class_name": { "type": "string" },
+        "service_account_name": { "type": "string" },
+        "resources": {
+          "type": "object",
+          "properties": {
+            "requests": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            },
+            "limits": {
+              "type": "object",
+              "additionalProperties": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "volumeMount": {
+      "type": "object",
+      "required": ["target"],
+      "properties": {
+        "source": { "type": "string" },
+        "target": { "type": "string" },
+        "read_only": { "type": "boolean", "default": false },
+        "type": { "type": "string", "enum": ["local", "gcs"], "default": "local" },
+        "bucket": { "type": "string" },
+        "prefix": { "type": "string" },
+        "mode": { "type": "string" }
+      }
+    },
+    "resourceSpec": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": { "type": "string" },
+            "memory": { "type": "string" }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": { "type": "string" },
+            "memory": { "type": "string" }
+          }
+        },
+        "disk": { "type": "string" }
+      }
+    },
+    "serviceSpec": {
+      "type": "object",
+      "required": ["name", "command"],
+      "properties": {
+        "name": { "type": "string" },
+        "command": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "restart": {
+          "type": "string",
+          "enum": ["no", "always", "on-failure"]
+        },
+        "ready_check": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["tcp", "http"]
+            },
+            "target": { "type": "string" },
+            "timeout": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

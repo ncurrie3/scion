@@ -16,6 +16,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"sort"
 
 	"github.com/ptone/scion-agent/pkg/config"
@@ -157,12 +158,160 @@ var configGetCmd = &cobra.Command{
 	},
 }
 
+var configValidateCmd = &cobra.Command{
+	Use:   "validate",
+	Short: "Validate settings files against the schema",
+	Long: `Validate settings files against the JSON Schema for the declared schema version.
+
+Checks both global (~/.scion/settings.yaml) and grove-level (.scion/settings.yaml)
+settings files. Reports whether each file uses the versioned or legacy format,
+and lists any schema validation errors found.
+
+Legacy settings files (without schema_version) are identified but not validated
+against the schema — they use the pre-versioned format.`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		type fileResult struct {
+			Path     string   `json:"path"`
+			Format   string   `json:"format"`
+			Version  string   `json:"version,omitempty"`
+			Valid    bool     `json:"valid"`
+			Errors   []string `json:"errors,omitempty"`
+			Warnings []string `json:"warnings,omitempty"`
+		}
+
+		var results []fileResult
+		hasErrors := false
+
+		// Collect settings file paths to validate.
+		var filePaths []struct {
+			dir   string
+			label string
+		}
+
+		globalDir, _ := config.GetGlobalDir()
+		if globalDir != "" {
+			filePaths = append(filePaths, struct {
+				dir   string
+				label string
+			}{globalDir, "global"})
+		}
+
+		projectDir, err := config.GetResolvedProjectDir(grovePath)
+		if err == nil && projectDir != "" && projectDir != globalDir {
+			filePaths = append(filePaths, struct {
+				dir   string
+				label string
+			}{projectDir, "grove"})
+		}
+
+		for _, fp := range filePaths {
+			settingsPath := config.GetSettingsPath(fp.dir)
+			if settingsPath == "" {
+				continue
+			}
+
+			data, err := os.ReadFile(settingsPath)
+			if err != nil {
+				results = append(results, fileResult{
+					Path:   settingsPath,
+					Format: "unknown",
+					Errors: []string{fmt.Sprintf("failed to read file: %v", err)},
+				})
+				hasErrors = true
+				continue
+			}
+
+			version, isLegacy := config.DetectSettingsFormat(data)
+
+			r := fileResult{
+				Path:  settingsPath,
+				Valid: true,
+			}
+
+			switch {
+			case version != "":
+				r.Format = "versioned"
+				r.Version = version
+
+				validationErrors, err := config.ValidateSettings(data, version)
+				if err != nil {
+					r.Valid = false
+					r.Errors = []string{err.Error()}
+					hasErrors = true
+				} else if len(validationErrors) > 0 {
+					r.Valid = false
+					hasErrors = true
+					for _, ve := range validationErrors {
+						r.Errors = append(r.Errors, ve.Error())
+					}
+				}
+
+			case isLegacy:
+				r.Format = "legacy"
+				r.Warnings = append(r.Warnings, "Legacy settings format detected. Run 'scion config migrate' to update.")
+
+			default:
+				r.Format = "minimal"
+				r.Warnings = append(r.Warnings, "No schema_version found. File may be empty or use an unrecognized format.")
+			}
+
+			results = append(results, r)
+		}
+
+		if len(results) == 0 {
+			if isJSONOutput() {
+				return outputJSON(ActionResult{
+					Status:  "success",
+					Command: "config validate",
+					Message: "No settings files found.",
+				})
+			}
+			fmt.Println("No settings files found.")
+			return nil
+		}
+
+		if isJSONOutput() {
+			return outputJSON(map[string]interface{}{
+				"files": results,
+				"valid": !hasErrors,
+			})
+		}
+
+		for _, r := range results {
+			fmt.Printf("%s (%s", r.Path, r.Format)
+			if r.Version != "" {
+				fmt.Printf(" v%s", r.Version)
+			}
+			fmt.Println(")")
+
+			if r.Valid && len(r.Warnings) == 0 {
+				fmt.Println("  Valid")
+			}
+
+			for _, w := range r.Warnings {
+				fmt.Printf("  WARNING: %s\n", w)
+			}
+
+			for _, e := range r.Errors {
+				fmt.Printf("  ERROR: %s\n", e)
+			}
+
+			fmt.Println()
+		}
+
+		if hasErrors {
+			return fmt.Errorf("validation failed")
+		}
+		return nil
+	},
+}
+
 func init() {
 	rootCmd.AddCommand(configCmd)
 	configCmd.AddCommand(configListCmd)
 	configCmd.AddCommand(configSetCmd)
 	configCmd.AddCommand(configGetCmd)
+	configCmd.AddCommand(configValidateCmd)
 
 	configSetCmd.Flags().BoolVar(&configGlobal, "global", false, "Set configuration globally (~/.scion/settings.json)")
-	// configListCmd.Flags().BoolVar(&configGlobal, "global", false, "List global configuration only") // Not strictly required by design but useful
 }
