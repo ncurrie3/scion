@@ -100,6 +100,8 @@ case "podman":
 
 Also add "podman" to the known-type fallback check (the condition around line 48 that recognizes bare type names like "docker", "kubernetes", etc.).
 
+`NewPodmanRuntime()` should run `podman --version` and parse the major version. If the version is below 4.x, return an `ErrorRuntime` with a message indicating the minimum supported version.
+
 #### Auto-Detection
 The runtime should be specified explicitly in the user's profile configuration. However, during `scion init` bootstrapping (when writing the initial `settings.yaml`), auto-detection determines the default:
 
@@ -193,8 +195,12 @@ If CI runs in a container or restricted environment, rootless Podman may not be 
 | 3 | **Podman Machine mount validation** | Validate workspace is within `$HOME` on macOS; error with guidance if not. |
 | 4 | **Code structure** | Independent implementation (duplicate from Docker) for clean separation. |
 | 5 | **Rootless UID/GID strategy** | Use default user namespace mapping; let `sciontool init` handle remapping. No `--userns=keep-id`. |
+| 6 | **Image registry compatibility** | Not an issue — harness configs provide fully-qualified image names. |
+| 7 | **Podman version floor** | Podman 4.x+ minimum; check version during detection and error on older versions. |
 
-## Remaining Open Questions
+## Additional Decisions
 
-1. **Image registry compatibility**: Podman defaults to searching multiple registries (e.g., `docker.io`, `quay.io`) unless a fully-qualified image name is provided. Should `PodmanRuntime` enforce fully-qualified image names, or rely on the user's `registries.conf`?
-2. **Podman version floor**: What minimum Podman version should Scion support? Podman 4.x+ is recommended for stable rootless and machine support. Older versions have significant behavioral differences.
+| # | Topic | Decision |
+|---|---|---|
+| 6 | **Image registry compatibility** | Not an issue — harness configs already provide fully-qualified image names (e.g., `docker.io/scion/...`), so Podman's multi-registry search behavior is not a concern. |
+| 7 | **Podman version floor** | Minimum supported version is **Podman 4.x+**. Check the version during runtime detection and emit a clear error if an older version is found. Podman 4.x provides stable rootless mode, machine support, and consistent JSON output formats. |
