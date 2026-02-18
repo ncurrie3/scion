@@ -164,6 +164,79 @@ func TestMakeWritableRecursive(t *testing.T) {
 	}
 }
 
+func TestRemoveAllSafe_BasicTree(t *testing.T) {
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "agent-dir")
+	if err := os.MkdirAll(filepath.Join(target, "subdir", "deep"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range []string{
+		filepath.Join(target, "file.txt"),
+		filepath.Join(target, "subdir", "nested.txt"),
+		filepath.Join(target, "subdir", "deep", "leaf.txt"),
+	} {
+		if err := os.WriteFile(f, []byte("data"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := removeAllSafe(target); err != nil {
+		t.Fatalf("removeAllSafe failed: %v", err)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Error("expected target to be fully removed")
+	}
+}
+
+func TestRemoveAllSafe_WithDanglingSymlinks(t *testing.T) {
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "agent-dir")
+	debugDir := filepath.Join(target, ".claude", "debug")
+	if err := os.MkdirAll(debugDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	// Multiple dangling symlinks mimicking container-internal paths.
+	for _, name := range []string{"latest", "session-1", "session-2"} {
+		if err := os.Symlink("/home/scion/.claude/debug/"+name+".txt", filepath.Join(debugDir, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// A regular file alongside the symlinks.
+	if err := os.WriteFile(filepath.Join(debugDir, "real.txt"), []byte("x"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := removeAllSafe(target); err != nil {
+		t.Fatalf("removeAllSafe failed: %v", err)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Error("expected target to be fully removed")
+	}
+}
+
+func TestRemoveAllSafe_ReadOnlyFilesAndDirs(t *testing.T) {
+	tmpDir := t.TempDir()
+	target := filepath.Join(tmpDir, "agent-dir")
+	readOnlyDir := filepath.Join(target, "readonly-dir")
+	if err := os.MkdirAll(readOnlyDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(readOnlyDir, "file.txt"), []byte("x"), 0400); err != nil {
+		t.Fatal(err)
+	}
+	// Lock down the directory.
+	if err := os.Chmod(readOnlyDir, 0500); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := removeAllSafe(target); err != nil {
+		t.Fatalf("removeAllSafe failed: %v", err)
+	}
+	if _, err := os.Stat(target); !os.IsNotExist(err) {
+		t.Error("expected target to be fully removed even with read-only entries")
+	}
+}
+
 func TestRemoveAllAsync_RemovesOriginalPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	target := filepath.Join(tmpDir, "agent-dir")

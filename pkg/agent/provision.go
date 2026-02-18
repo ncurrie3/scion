@@ -71,11 +71,6 @@ func DeleteAgentFiles(agentName string, grovePath string, removeBranch bool) (bo
 			}
 		}
 
-		util.Debugf("delete: making directory writable: %s", agentDir)
-		chmodStart := time.Now()
-		_ = util.MakeWritableRecursive(agentDir)
-		util.Debugf("delete: chmod completed in %v", time.Since(chmodStart))
-
 		util.Debugf("delete: removing directory: %s", agentDir)
 		removeStart := time.Now()
 		if err := util.RemoveAllAsync(agentDir); err != nil {
