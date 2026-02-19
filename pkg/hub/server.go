@@ -276,6 +276,7 @@ type Server struct {
 	metrics           MetricsRecorder     // Metrics recorder for broker auth
 	controlChannel    *ControlChannelManager // WebSocket control channel for runtime brokers
 	authzService      *AuthzService       // Authorization service for policy evaluation
+	events            EventPublisher      // Event publisher for real-time SSE updates
 }
 
 // New creates a new Hub API server.
@@ -285,6 +286,7 @@ func New(cfg ServerConfig, s store.Store) *Server {
 		store:     s,
 		mux:       http.NewServeMux(),
 		startTime: time.Now(),
+		events:    noopEventPublisher{},
 	}
 
 	ctx := context.Background()
@@ -372,6 +374,13 @@ func New(cfg ServerConfig, s store.Store) *Server {
 					slog.Error("Failed to update provider status", "brokerID", brokerID, "groveID", provider.GroveID, "error", err)
 				}
 			}
+
+			// Publish broker disconnected event
+			groveIDs := make([]string, len(providers))
+			for i, p := range providers {
+				groveIDs[i] = p.GroveID
+			}
+			srv.events.PublishBrokerDisconnected(ctx, brokerID, groveIDs)
 		}
 	})
 	slog.Info("Control channel manager initialized")
@@ -539,6 +548,13 @@ func (s *Server) SetMetrics(m MetricsRecorder) {
 	s.metrics = m
 }
 
+// SetEventPublisher sets the event publisher for real-time SSE updates.
+func (s *Server) SetEventPublisher(ep EventPublisher) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.events = ep
+}
+
 // GetControlChannelManager returns the control channel manager.
 func (s *Server) GetControlChannelManager() *ControlChannelManager {
 	s.mu.RLock()
@@ -684,6 +700,11 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	// Stop the nonce cache cleanup goroutine
 	if s.brokerAuthService != nil {
 		s.brokerAuthService.Close()
+	}
+
+	// Close event publisher
+	if s.events != nil {
+		s.events.Close()
 	}
 
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
@@ -1051,6 +1072,18 @@ func (s *Server) markBrokerOnline(brokerID string) {
 			slog.Error("Failed to update provider status", "brokerID", brokerID, "groveID", provider.GroveID, "error", err)
 		}
 	}
+
+	// Publish broker connected event
+	groveIDs := make([]string, len(providers))
+	for i, p := range providers {
+		groveIDs[i] = p.GroveID
+	}
+	broker, err := s.store.GetRuntimeBroker(ctx, brokerID)
+	var brokerName string
+	if err == nil {
+		brokerName = broker.Name
+	}
+	s.events.PublishBrokerConnected(ctx, brokerID, brokerName, groveIDs)
 }
 
 // isWebSocketUpgrade checks if the request is a WebSocket upgrade request.

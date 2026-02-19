@@ -530,6 +530,8 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	s.events.PublishAgentCreated(ctx, agent)
+
 	// Enrich agent with grove and broker names for display
 	s.enrichAgent(ctx, agent, grove, nil)
 
@@ -826,6 +828,8 @@ func (s *Server) deleteAgent(w http.ResponseWriter, r *http.Request, id string) 
 		return
 	}
 
+	s.events.PublishAgentDeleted(ctx, agent.ID, agent.GroveID)
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -951,6 +955,13 @@ func (s *Server) updateAgentStatus(w http.ResponseWriter, r *http.Request, id st
 		return
 	}
 
+	// Publish status event (best-effort: fetch agent for GroveID)
+	if agent, err := s.store.GetAgent(ctx, id); err == nil {
+		s.events.PublishAgentStatus(ctx, agent)
+	} else {
+		slog.Warn("Failed to fetch agent for status event", "agentID", id, "error", err)
+	}
+
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -1020,6 +1031,8 @@ func (s *Server) handleAgentLifecycle(w http.ResponseWriter, r *http.Request, id
 	}
 
 	agent.Status = newStatus
+	s.events.PublishAgentStatus(ctx, agent)
+
 	writeJSON(w, http.StatusOK, agent)
 }
 
@@ -1163,6 +1176,8 @@ func (s *Server) createGrove(w http.ResponseWriter, r *http.Request) {
 
 	// Create the associated grove_agents group (best-effort)
 	s.createGroveGroup(ctx, grove)
+
+	s.events.PublishGroveCreated(ctx, grove)
 
 	writeJSON(w, http.StatusCreated, grove)
 }
@@ -1847,6 +1862,8 @@ func (s *Server) createGroveAgent(w http.ResponseWriter, r *http.Request, groveI
 		}
 	}
 
+	s.events.PublishAgentCreated(ctx, agent)
+
 	// Enrich agent with grove and broker names for display
 	s.enrichAgent(ctx, agent, grove, nil)
 
@@ -1997,6 +2014,8 @@ func (s *Server) deleteGroveAgent(w http.ResponseWriter, r *http.Request, groveI
 		return
 	}
 
+	s.events.PublishAgentDeleted(ctx, agent.ID, agent.GroveID)
+
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -2121,6 +2140,8 @@ func (s *Server) updateGrove(w http.ResponseWriter, r *http.Request, id string) 
 		return
 	}
 
+	s.events.PublishGroveUpdated(ctx, grove)
+
 	writeJSON(w, http.StatusOK, grove)
 }
 
@@ -2138,6 +2159,8 @@ func (s *Server) deleteGrove(w http.ResponseWriter, r *http.Request, id string) 
 		writeErrorFromErr(w, err, "")
 		return
 	}
+
+	s.events.PublishGroveDeleted(ctx, id)
 
 	w.WriteHeader(http.StatusNoContent)
 }
