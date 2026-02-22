@@ -113,7 +113,10 @@ gcloud compute ssh "${INSTANCE_NAME}" --zone="${ZONE}" --command '
     echo "Updating repository..."
     sudo -u scion sh -c "cd /home/scion/scion-agent && git pull"
 
-    # 2. Build binary as scion user from cmd/scion
+    # 2. Build web assets and binary as scion user
+    echo "Building web assets..."
+    sudo -u scion sh -c "cd /home/scion/scion-agent && make web"
+
     echo "Building scion binary..."
     sudo -u scion sh -c "cd /home/scion/scion-agent && /usr/local/go/bin/go build -o scion ./cmd/scion"
     
