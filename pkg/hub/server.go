@@ -85,6 +85,11 @@ type ServerConfig struct {
 	BrokerAuthConfig BrokerAuthConfig
 	// HubEndpoint is the public endpoint URL for this Hub (used in broker join responses).
 	HubEndpoint string
+	// SoftDeleteRetention is how long soft-deleted agents are retained before purging.
+	// Zero means soft-delete is disabled (hard-delete immediately).
+	SoftDeleteRetention time.Duration
+	// SoftDeleteRetainFiles controls whether workspace files are preserved during soft-delete.
+	SoftDeleteRetainFiles bool
 }
 
 // DefaultServerConfig returns the default server configuration.

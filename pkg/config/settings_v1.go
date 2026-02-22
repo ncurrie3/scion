@@ -188,6 +188,11 @@ type V1ServerHubConfig struct {
 	WriteTimeout string       `json:"write_timeout,omitempty" yaml:"write_timeout,omitempty" koanf:"write_timeout"`
 	CORS         *V1CORSConfig `json:"cors,omitempty" yaml:"cors,omitempty" koanf:"cors"`
 	AdminEmails  []string     `json:"admin_emails,omitempty" yaml:"admin_emails,omitempty" koanf:"admin_emails"`
+
+	// SoftDeleteRetention is how long soft-deleted agents are retained (e.g., "72h").
+	SoftDeleteRetention string `json:"soft_delete_retention,omitempty" yaml:"soft_delete_retention,omitempty" koanf:"soft_delete_retention"`
+	// SoftDeleteRetainFiles controls whether workspace files are preserved during soft-delete.
+	SoftDeleteRetainFiles *bool `json:"soft_delete_retain_files,omitempty" yaml:"soft_delete_retain_files,omitempty" koanf:"soft_delete_retain_files"`
 }
 
 // V1BrokerConfig holds Runtime Broker configuration.
@@ -493,6 +498,8 @@ func versionedEnvKeyMapper(s string) string {
 // These must be recognized as single fields rather than split into nested keys.
 // IMPORTANT: Sorted longest-first so that "dev_token_file" matches before "dev_token".
 var knownCompoundFields = []string{
+	"soft_delete_retain_files",
+	"soft_delete_retention",
 	"authorized_domains",
 	"broker_nickname",
 	"allowed_origins",
@@ -734,6 +741,14 @@ func ConvertV1ServerToGlobalConfig(v1 *V1ServerConfig) *GlobalConfig {
 		if v1.Hub.AdminEmails != nil {
 			gc.Hub.AdminEmails = v1.Hub.AdminEmails
 		}
+		if v1.Hub.SoftDeleteRetention != "" {
+			if d, err := time.ParseDuration(v1.Hub.SoftDeleteRetention); err == nil {
+				gc.Hub.SoftDeleteRetention = d
+			}
+		}
+		if v1.Hub.SoftDeleteRetainFiles != nil {
+			gc.Hub.SoftDeleteRetainFiles = *v1.Hub.SoftDeleteRetainFiles
+		}
 	}
 
 	// Broker config
@@ -880,7 +895,7 @@ func ConvertGlobalToV1ServerConfig(gc *GlobalConfig) *V1ServerConfig {
 	}
 
 	// Hub server config
-	v1.Hub = &V1ServerHubConfig{
+	v1Hub := &V1ServerHubConfig{
 		Port:         gc.Hub.Port,
 		Host:         gc.Hub.Host,
 		PublicURL:    gc.Hub.Endpoint,
@@ -895,6 +910,14 @@ func ConvertGlobalToV1ServerConfig(gc *GlobalConfig) *V1ServerConfig {
 			MaxAge:         gc.Hub.CORSMaxAge,
 		},
 	}
+	if gc.Hub.SoftDeleteRetention > 0 {
+		v1Hub.SoftDeleteRetention = gc.Hub.SoftDeleteRetention.String()
+	}
+	if gc.Hub.SoftDeleteRetainFiles {
+		retainFiles := true
+		v1Hub.SoftDeleteRetainFiles = &retainFiles
+	}
+	v1.Hub = v1Hub
 
 	// Broker config
 	v1.Broker = &V1BrokerConfig{

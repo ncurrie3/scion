@@ -542,7 +542,9 @@ func runServerStart(cmd *cobra.Command, args []string) error {
 			Debug:              enableDebug,
 			AuthorizedDomains:  cfg.Auth.AuthorizedDomains,
 			AdminEmails:        adminEmailList,
-			HubEndpoint:        hubEndpoint,
+			HubEndpoint:           hubEndpoint,
+			SoftDeleteRetention:   cfg.Hub.SoftDeleteRetention,
+			SoftDeleteRetainFiles: cfg.Hub.SoftDeleteRetainFiles,
 			BrokerAuthConfig:     hub.DefaultBrokerAuthConfig(), // Enable broker HMAC authentication
 			OAuthConfig: hub.OAuthConfig{
 				Web: hub.OAuthClientConfig{

@@ -50,6 +50,14 @@ type HubServerConfig struct {
 
 	// AdminEmails is a list of email addresses to auto-promote to admin role.
 	AdminEmails []string `json:"adminEmails" yaml:"adminEmails" koanf:"adminEmails"`
+
+	// SoftDeleteRetention is how long soft-deleted agents are retained before purging.
+	// Zero means soft-delete is disabled (hard-delete immediately).
+	SoftDeleteRetention time.Duration `json:"softDeleteRetention" yaml:"softDeleteRetention" koanf:"softDeleteRetention"`
+
+	// SoftDeleteRetainFiles controls whether workspace files are preserved during soft-delete.
+	// When true, the broker skips file cleanup for soft-deleted agents.
+	SoftDeleteRetainFiles bool `json:"softDeleteRetainFiles" yaml:"softDeleteRetainFiles" koanf:"softDeleteRetainFiles"`
 }
 
 // RuntimeBrokerConfig holds configuration for the Runtime Broker API server.
