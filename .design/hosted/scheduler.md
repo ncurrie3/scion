@@ -150,6 +150,8 @@ func (s *Scheduler) RegisterRecurring(name string, intervalMinutes int, fn func(
 
 #### Start and Root Ticker Loop
 
+> **Tick-Zero Behavior (Important for Documentation):** All recurring handlers run immediately on startup (tick 0) because `tickCount` starts at 0 and `0 % N == 0` for any interval N. This is intentional and consistent with the existing `startPurgeLoop` behavior. Any user-facing documentation for recurring handlers must clearly state that handlers execute once immediately on scheduler start, then at their configured interval thereafter.
+
 ```go
 func (s *Scheduler) Start(ctx context.Context) {
     // Load and schedule persisted one-shot timers
@@ -163,7 +165,8 @@ func (s *Scheduler) Start(ctx context.Context) {
         ticker := time.NewTicker(1 * time.Minute)
         defer ticker.Stop()
 
-        // Run eligible handlers immediately on startup (tick 0)
+        // Run eligible handlers immediately on startup (tick 0).
+        // All handlers fire at tick 0 because 0 % N == 0 for any interval.
         s.runRecurringHandlers(ctx)
 
         for {
@@ -243,7 +246,7 @@ One-shot timers fire once at a specific time. They are persisted in the database
 CREATE TABLE scheduled_events (
     id TEXT PRIMARY KEY,
     grove_id TEXT NOT NULL,              -- Scope to a grove
-    event_type TEXT NOT NULL,            -- e.g., "message", "status_update", "custom"
+    event_type TEXT NOT NULL,            -- e.g., "message", "status_update"
     fire_at TIMESTAMP NOT NULL,          -- When to fire (UTC)
     payload TEXT NOT NULL,               -- JSON payload (handler-specific)
     status TEXT NOT NULL DEFAULT 'pending',  -- pending, fired, cancelled, expired
@@ -298,7 +301,7 @@ type ScheduledEventStore interface {
 type ScheduledEvent struct {
     ID        string    `json:"id"`
     GroveID   string    `json:"groveId"`
-    EventType string    `json:"eventType"`   // "message", "status_update", "custom"
+    EventType string    `json:"eventType"`   // "message", "status_update"
     FireAt    time.Time `json:"fireAt"`      // When to fire (UTC)
     Payload   string    `json:"payload"`     // JSON blob (handler-specific)
     Status    string    `json:"status"`      // pending, fired, cancelled, expired
@@ -370,6 +373,7 @@ func (s *Scheduler) scheduleTimer(ctx context.Context, evt ScheduledEvent) {
     timerCtx, cancel := context.WithCancel(ctx)
 
     timer := time.AfterFunc(delay, func() {
+        defer cancel()
         s.fireEvent(timerCtx, evt, false)
         s.mu.Lock()
         delete(s.timers, evt.ID)
@@ -400,15 +404,24 @@ func (s *Scheduler) fireEvent(ctx context.Context, evt ScheduledEvent, wasExpire
     }
 
     var errMsg string
-    err := s.executeEvent(handlerCtx, evt)
-    if err != nil {
-        errMsg = err.Error()
-        slog.Warn("Scheduler: event handler failed",
-            "eventID", evt.ID, "type", evt.EventType, "error", err)
-    } else {
-        slog.Info("Scheduler: event fired",
-            "eventID", evt.ID, "type", evt.EventType, "wasExpired", wasExpired)
-    }
+    func() {
+        defer func() {
+            if r := recover(); r != nil {
+                errMsg = fmt.Sprintf("handler panicked: %v", r)
+                slog.Error("Scheduler: event handler panicked",
+                    "eventID", evt.ID, "type", evt.EventType, "panic", r)
+            }
+        }()
+
+        if err := s.executeEvent(handlerCtx, evt); err != nil {
+            errMsg = err.Error()
+            slog.Warn("Scheduler: event handler failed",
+                "eventID", evt.ID, "type", evt.EventType, "error", err)
+        } else {
+            slog.Info("Scheduler: event fired",
+                "eventID", evt.ID, "type", evt.EventType, "wasExpired", wasExpired)
+        }
+    }()
 
     now := time.Now()
     _ = s.store.UpdateScheduledEventStatus(ctx, evt.ID, status, &now, errMsg)
@@ -631,9 +644,9 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 #### Expired Timers on Startup
 
-When the Hub restarts, one-shot timers whose `fire_at` has passed are executed immediately. Their status is set to `expired` (not `fired`) to distinguish them from timers that fired at the intended time. Event handlers should tolerate late execution — for example, a scheduled message should still be delivered even if delayed.
+When the Hub restarts, one-shot timers whose `fire_at` has passed are executed immediately. Their status is recorded as `expired` (not `fired`) in the database to distinguish them from timers that fired at the intended time. The handler itself is invoked identically regardless of whether the timer was expired — event handlers should tolerate late execution. For example, a scheduled message should still be delivered even if delayed.
 
-Handlers can inspect the `wasExpired` flag and choose to skip execution if staleness matters:
+The `expired` vs `fired` distinction is an audit/observability concern, not a handler concern. If a future handler needs to distinguish between on-time and late execution, `wasExpired` can be threaded through to `executeEvent` at that point.
 
 ```go
 func (s *Scheduler) handleMessageEvent(ctx context.Context, evt ScheduledEvent) error {
@@ -772,17 +785,25 @@ All pending timers are loaded into memory on startup regardless of how far in th
 
 Non-pending scheduled events older than 7 days are cleaned up by the existing purge recurring handler. This is implemented in the `purgeHandler` (see Section 4).
 
+### 7. Broker disconnect does not imply `undetermined` — No
+
+A disconnected Runtime Broker does **not** warrant immediately marking its agents as `undetermined`. The `sciontool` (running inside each agent container) sends heartbeat updates to the Hub independently of the broker's control channel. A broker disconnect means the Hub can no longer issue commands to agents on that broker, but the agents themselves continue reporting their status directly. The heartbeat timeout mechanism (2-minute `last_seen` threshold) remains the correct signal — if the agent itself stops reporting, *then* it becomes `undetermined`.
+
+### 8. Tick-zero behavior — Keep, document prominently
+
+All recurring handlers run immediately on startup (tick 0) because `0 % N == 0` for any interval N. This is intentional and matches the existing `startPurgeLoop` behavior. This must be prominently documented in any user-facing documentation for the scheduler. If a future handler should *not* run on startup, the registration API can add an optional `SkipTickZero` field to `RecurringHandler` at that point.
+
 ---
 
 ## Open Questions
 
-### 1. Broker disconnect as a signal for `undetermined`
+### 1. One-shot handler panic recovery and map cleanup ordering
 
-When a Runtime Broker disconnects from the Hub, all agents on that broker become unreachable. Currently, those agents will be marked `undetermined` only after their `last_seen` exceeds the 2-minute heartbeat timeout. An alternative would be to immediately mark all agents on a disconnected broker as `undetermined` at the time of disconnect, rather than waiting for the timeout. This would provide faster detection but adds coupling between broker lifecycle events and agent status management. Worth considering for a future iteration.
+The `scheduleTimer` callback calls `fireEvent` (which now includes panic recovery) and then removes the timer from the in-memory map. If a panic occurs inside `fireEvent`, it is recovered and the DB status is updated, but the `delete(s.timers, evt.ID)` still executes afterward — which is correct. However, the `defer cancel()` at the top of the callback means the context is cancelled *after* the map cleanup. If `fireEvent`'s DB status update is slow and the context is cancelled by `Stop()` concurrently, the status update could be lost. In practice this is unlikely (the cancel and Stop paths are independent), but worth verifying during implementation that the ordering is sound under concurrent shutdown.
 
-### 2. Tick-zero behavior for long-interval handlers
+### 2. `MarkStaleAgentsUndetermined` returning updated rows
 
-On startup (tick 0), `runRecurringHandlers` runs all handlers where `tickCount % interval == 0`. Since `tickCount` starts at 0, **every** handler runs immediately on startup, including the 60-minute purge handler. This is the current behavior of the existing `startPurgeLoop` (which also runs immediately), so it's consistent. However, if future handlers should *not* run on startup, the registration API may need an option to skip tick 0.
+The SQL shown is a plain `UPDATE` statement, but the Go method signature returns `[]Agent`. The implementation will need SQLite's `RETURNING *` clause (available since SQLite 3.35.0, 2021) or a two-step SELECT-then-UPDATE approach. The `RETURNING` clause is preferred for atomicity. Worth confirming the project's minimum SQLite version supports it.
 
 ---
 
