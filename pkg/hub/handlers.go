@@ -579,18 +579,36 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if !hasLocalPath {
-			stor := s.GetStorage()
-			if stor != nil {
-				storagePath := storage.GroveWorkspaceStoragePath(grove.ID)
-				if err := gcp.SyncToGCS(ctx, agent.AppliedConfig.Workspace, stor.Bucket(), storagePath+"/files"); err != nil {
-					slog.Warn("Failed to upload hub-native grove workspace to GCS",
-						"grove", grove.ID, "error", err)
-				} else {
-					// Swap workspace to storage path for remote broker
-					agent.AppliedConfig.Workspace = ""
-					agent.AppliedConfig.WorkspaceStoragePath = storagePath
-					if err := s.store.UpdateAgent(ctx, agent); err != nil {
-						slog.Warn("Failed to update agent with workspace storage path", "error", err)
+			// Self-heal: if the provider exists but lacks LocalPath (created before
+			// the auto-link fix), compute and persist it to skip unnecessary GCS sync.
+			healed := false
+			if runtimeBrokerID != "" {
+				if provider, err := s.store.GetGroveProvider(ctx, grove.ID, runtimeBrokerID); err == nil {
+					if localPath, pathErr := hubNativeGrovePath(grove.Slug); pathErr == nil {
+						provider.LocalPath = localPath
+						if updateErr := s.store.AddGroveProvider(ctx, provider); updateErr == nil {
+							slog.Info("Self-healed grove provider with LocalPath",
+								"grove", grove.ID, "broker", runtimeBrokerID, "localPath", localPath)
+							healed = true
+						}
+					}
+				}
+			}
+
+			if !healed {
+				stor := s.GetStorage()
+				if stor != nil {
+					storagePath := storage.GroveWorkspaceStoragePath(grove.ID)
+					if err := gcp.SyncToGCS(ctx, agent.AppliedConfig.Workspace, stor.Bucket(), storagePath+"/files"); err != nil {
+						slog.Warn("Failed to upload hub-native grove workspace to GCS",
+							"grove", grove.ID, "error", err)
+					} else {
+						// Swap workspace to storage path for remote broker
+						agent.AppliedConfig.Workspace = ""
+						agent.AppliedConfig.WorkspaceStoragePath = storagePath
+						if err := s.store.UpdateAgent(ctx, agent); err != nil {
+							slog.Warn("Failed to update agent with workspace storage path", "error", err)
+						}
 					}
 				}
 			}
@@ -4991,6 +5009,13 @@ func (s *Server) autoLinkProviders(ctx context.Context, grove *store.Grove) {
 			Status:     autoBroker.Status,
 			LinkedBy:   "auto-provide",
 		}
+		// For hub-native groves (no git remote), set LocalPath so the co-located
+		// broker can access the workspace directly without GCS sync.
+		if grove.GitRemote == "" {
+			if localPath, err := hubNativeGrovePath(grove.Slug); err == nil {
+				provider.LocalPath = localPath
+			}
+		}
 		if addErr := s.store.AddGroveProvider(ctx, provider); addErr != nil {
 			slog.Warn("Failed to auto-link broker to grove",
 				"broker", autoBroker.Name, "grove", grove.ID, "error", addErr)
@@ -5875,6 +5900,13 @@ func (s *Server) resolveRuntimeBroker(ctx context.Context, w http.ResponseWriter
 				BrokerName: broker.Name,
 				Status:     broker.Status,
 				LinkedBy:   "agent-create",
+			}
+			// For hub-native groves (no git remote), set LocalPath so the co-located
+			// broker can access the workspace directly without GCS sync.
+			if grove.GitRemote == "" {
+				if localPath, pathErr := hubNativeGrovePath(grove.Slug); pathErr == nil {
+					provider.LocalPath = localPath
+				}
 			}
 			if addErr := s.store.AddGroveProvider(ctx, provider); addErr != nil {
 				slog.Warn("Failed to auto-link broker during agent creation",

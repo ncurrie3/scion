@@ -412,3 +412,197 @@ func TestCreateAgent_HubNativeGrove_NoProviders_NoBroker(t *testing.T) {
 	assert.NotEqual(t, http.StatusCreated, rec.Code,
 		"Should fail when no providers exist and no broker is specified")
 }
+
+// TestAutoLinkProviders_HubNativeGrove_SetsLocalPath verifies that autoLinkProviders
+// sets LocalPath on the provider for hub-native groves (no git remote), so that
+// co-located brokers can access the workspace directly without GCS sync.
+func TestAutoLinkProviders_HubNativeGrove_SetsLocalPath(t *testing.T) {
+	srv, s := testServer(t)
+	ctx := context.Background()
+
+	// Create a broker with auto_provide enabled
+	broker := &store.RuntimeBroker{
+		ID:          "broker-localpath-auto",
+		Slug:        "localpath-auto-broker",
+		Name:        "LocalPath Auto Broker",
+		Status:      store.BrokerStatusOnline,
+		AutoProvide: true,
+	}
+	require.NoError(t, s.CreateRuntimeBroker(ctx, broker))
+
+	// Create a hub-native grove via the API — this triggers autoLinkProviders
+	body := CreateGroveRequest{
+		Name: "LocalPath Auto Grove",
+	}
+
+	rec := doRequest(t, srv, http.MethodPost, "/api/v1/groves", body)
+	require.Equal(t, http.StatusCreated, rec.Code, "body: %s", rec.Body.String())
+
+	var grove store.Grove
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&grove))
+	assert.Empty(t, grove.GitRemote, "should be hub-native")
+
+	// Verify the auto-linked provider has LocalPath set
+	provider, err := s.GetGroveProvider(ctx, grove.ID, broker.ID)
+	require.NoError(t, err, "Auto-provide broker should be linked as a provider")
+	assert.Equal(t, "auto-provide", provider.LinkedBy)
+
+	expectedPath, err := hubNativeGrovePath(grove.Slug)
+	require.NoError(t, err)
+	assert.Equal(t, expectedPath, provider.LocalPath,
+		"LocalPath should be set for hub-native grove auto-linked provider")
+
+	// Cleanup hub-native grove filesystem
+	workspacePath, err := hubNativeGrovePath(grove.Slug)
+	if err == nil {
+		t.Cleanup(func() { os.RemoveAll(workspacePath) })
+	}
+}
+
+// TestAutoLinkProviders_GitGrove_NoLocalPath verifies that autoLinkProviders
+// does NOT set LocalPath on the provider for git-backed groves.
+func TestAutoLinkProviders_GitGrove_NoLocalPath(t *testing.T) {
+	srv, s := testServer(t)
+	ctx := context.Background()
+
+	// Create a broker with auto_provide enabled
+	broker := &store.RuntimeBroker{
+		ID:          "broker-localpath-git",
+		Slug:        "localpath-git-broker",
+		Name:        "LocalPath Git Broker",
+		Status:      store.BrokerStatusOnline,
+		AutoProvide: true,
+	}
+	require.NoError(t, s.CreateRuntimeBroker(ctx, broker))
+
+	// Create a git-backed grove via the API — this also triggers autoLinkProviders
+	body := CreateGroveRequest{
+		Name:      "LocalPath Git Grove",
+		GitRemote: "github.com/test/localpath-git-repo",
+	}
+
+	rec := doRequest(t, srv, http.MethodPost, "/api/v1/groves", body)
+	require.Equal(t, http.StatusCreated, rec.Code, "body: %s", rec.Body.String())
+
+	var grove store.Grove
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&grove))
+
+	// Verify the provider does NOT have LocalPath set
+	provider, err := s.GetGroveProvider(ctx, grove.ID, broker.ID)
+	require.NoError(t, err, "Auto-provide broker should be linked")
+	assert.Empty(t, provider.LocalPath,
+		"LocalPath should NOT be set for git-backed grove providers")
+}
+
+// TestResolveRuntimeBroker_HubNativeGrove_SetsLocalPath verifies that when a broker
+// is auto-linked during agent creation for a hub-native grove, LocalPath is set.
+func TestResolveRuntimeBroker_HubNativeGrove_SetsLocalPath(t *testing.T) {
+	srv, s := testServer(t)
+	ctx := context.Background()
+
+	// Create a runtime broker (not auto-provide — will be explicitly selected)
+	broker := &store.RuntimeBroker{
+		ID:     "broker-resolve-localpath",
+		Slug:   "resolve-localpath-broker",
+		Name:   "Resolve LocalPath Broker",
+		Status: store.BrokerStatusOnline,
+	}
+	require.NoError(t, s.CreateRuntimeBroker(ctx, broker))
+
+	// Create a hub-native grove with no providers
+	grove := &store.Grove{
+		ID:   "grove-resolve-localpath",
+		Slug: "resolve-localpath",
+		Name: "Resolve LocalPath Grove",
+	}
+	require.NoError(t, s.CreateGrove(ctx, grove))
+
+	// Create agent with explicit broker — triggers resolveRuntimeBroker auto-link
+	agentBody := map[string]interface{}{
+		"name":            "resolve-localpath-agent",
+		"groveId":         grove.ID,
+		"runtimeBrokerId": broker.ID,
+	}
+
+	rec := doRequest(t, srv, http.MethodPost, "/api/v1/agents", agentBody)
+	require.Equal(t, http.StatusCreated, rec.Code, "body: %s", rec.Body.String())
+
+	// Verify the auto-linked provider has LocalPath set
+	provider, err := s.GetGroveProvider(ctx, grove.ID, broker.ID)
+	require.NoError(t, err, "Broker should have been auto-linked")
+	assert.Equal(t, "agent-create", provider.LinkedBy)
+
+	expectedPath, err := hubNativeGrovePath(grove.Slug)
+	require.NoError(t, err)
+	assert.Equal(t, expectedPath, provider.LocalPath,
+		"LocalPath should be set when auto-linking during agent creation for hub-native grove")
+}
+
+// TestGCSSyncBlock_SelfHeals_MissingLocalPath verifies that the GCS sync block
+// self-heals providers that lack LocalPath for hub-native groves, skipping
+// unnecessary GCS uploads.
+func TestGCSSyncBlock_SelfHeals_MissingLocalPath(t *testing.T) {
+	srv, s := testServer(t)
+	ctx := context.Background()
+
+	// Create a broker
+	broker := &store.RuntimeBroker{
+		ID:       "broker-selfheal",
+		Slug:     "selfheal-broker",
+		Name:     "Self-Heal Broker",
+		Status:   store.BrokerStatusOnline,
+		Endpoint: "http://localhost:9800",
+	}
+	require.NoError(t, s.CreateRuntimeBroker(ctx, broker))
+
+	// Create a hub-native grove
+	grove := &store.Grove{
+		ID:                     "grove-selfheal",
+		Slug:                   "selfheal",
+		Name:                   "Self-Heal Grove",
+		DefaultRuntimeBrokerID: broker.ID,
+	}
+	require.NoError(t, s.CreateGrove(ctx, grove))
+
+	// Manually create a provider WITHOUT LocalPath (simulating pre-fix state)
+	provider := &store.GroveProvider{
+		GroveID:    grove.ID,
+		BrokerID:   broker.ID,
+		BrokerName: broker.Name,
+		Status:     broker.Status,
+		LinkedBy:   "auto-provide",
+		// LocalPath intentionally empty — simulates pre-fix provider
+	}
+	require.NoError(t, s.AddGroveProvider(ctx, provider))
+
+	// Verify provider initially has no LocalPath
+	p, err := s.GetGroveProvider(ctx, grove.ID, broker.ID)
+	require.NoError(t, err)
+	assert.Empty(t, p.LocalPath, "Provider should initially have no LocalPath")
+
+	// Create an agent — this triggers the GCS sync block which should self-heal
+	agentBody := map[string]interface{}{
+		"name":    "selfheal-agent",
+		"groveId": grove.ID,
+	}
+
+	rec := doRequest(t, srv, http.MethodPost, "/api/v1/agents", agentBody)
+	require.Equal(t, http.StatusCreated, rec.Code, "body: %s", rec.Body.String())
+
+	// Verify provider was self-healed with LocalPath
+	healedProvider, err := s.GetGroveProvider(ctx, grove.ID, broker.ID)
+	require.NoError(t, err)
+
+	expectedPath, err := hubNativeGrovePath(grove.Slug)
+	require.NoError(t, err)
+	assert.Equal(t, expectedPath, healedProvider.LocalPath,
+		"Provider should be self-healed with LocalPath for hub-native grove")
+
+	// Verify agent workspace was NOT swapped to storage path (no GCS sync happened)
+	var resp CreateAgentResponse
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&resp))
+	if resp.Agent.AppliedConfig != nil {
+		assert.Empty(t, resp.Agent.AppliedConfig.WorkspaceStoragePath,
+			"WorkspaceStoragePath should not be set — GCS sync should have been skipped")
+	}
+}
