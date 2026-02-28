@@ -3617,23 +3617,27 @@ func (s *Server) handleBrokerHeartbeat(w http.ResponseWriter, r *http.Request, i
 				statusUpdate.Status = agentHB.Status
 			}
 
-			// Derive lifecycle status from container status to ensure agents
-			// registered via sync (not started via hub) get proper status.
+			// Derive phase/status from container status to ensure agents
+			// registered via sync (not started via hub) get proper state.
 			// Terminal container states (exited/stopped) override agent status.
 			if agentHB.ContainerStatus != "" {
 				containerStatusLower := strings.ToLower(agentHB.ContainerStatus)
 				switch {
 				case strings.HasPrefix(containerStatusLower, "up") || containerStatusLower == "running":
+					statusUpdate.Phase = "running"
 					if statusUpdate.Status == "" {
 						statusUpdate.Status = store.AgentStatusRunning
 					}
 				case strings.HasPrefix(containerStatusLower, "exited") || containerStatusLower == "stopped":
+					statusUpdate.Phase = "stopped"
+					statusUpdate.Activity = ""
 					statusUpdate.Status = store.AgentStatusStopped
 				case containerStatusLower == "created":
 					// Don't downgrade a running agent to provisioning — the
 					// container may briefly report "created" while the runtime
 					// is transitioning to started.
 					if agent.Status != store.AgentStatusRunning && statusUpdate.Status == "" {
+						statusUpdate.Phase = "provisioning"
 						statusUpdate.Status = store.AgentStatusProvisioning
 					}
 				}

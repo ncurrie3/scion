@@ -97,9 +97,15 @@ func (nd *NotificationDispatcher) handleEvent(evt Event) {
 		return
 	}
 
+	// Use activity for matching when available, fall back to status
+	matchStatus := statusEvt.Status
+	if statusEvt.Activity != "" {
+		matchStatus = statusEvt.Activity
+	}
+
 	for i := range subs {
 		sub := &subs[i]
-		if !sub.MatchesStatus(statusEvt.Status) {
+		if !sub.MatchesStatus(matchStatus) {
 			continue
 		}
 
@@ -110,7 +116,7 @@ func (nd *NotificationDispatcher) handleEvent(evt Event) {
 				"subscriptionID", sub.ID, "error", err)
 			continue
 		}
-		if strings.EqualFold(lastStatus, statusEvt.Status) {
+		if strings.EqualFold(lastStatus, matchStatus) {
 			continue
 		}
 
@@ -127,7 +133,13 @@ func (nd *NotificationDispatcher) storeAndDispatch(ctx context.Context, sub *sto
 		return
 	}
 
-	message := formatNotificationMessage(agent, evt.Status)
+	// Use activity for matching/display when available, fall back to status
+	effectiveStatus := evt.Status
+	if evt.Activity != "" {
+		effectiveStatus = evt.Activity
+	}
+
+	message := formatNotificationMessage(agent, effectiveStatus)
 
 	notif := &store.Notification{
 		ID:             api.NewUUID(),
@@ -136,7 +148,7 @@ func (nd *NotificationDispatcher) storeAndDispatch(ctx context.Context, sub *sto
 		GroveID:        sub.GroveID,
 		SubscriberType: sub.SubscriberType,
 		SubscriberID:   sub.SubscriberID,
-		Status:         strings.ToUpper(evt.Status),
+		Status:         strings.ToUpper(effectiveStatus),
 		Message:        message,
 		CreatedAt:      time.Now(),
 	}

@@ -826,14 +826,14 @@ func (s *Server) GenerateAgentToken(agentID, groveID string, additionalScopes ..
 }
 
 // agentHeartbeatTimeoutHandler returns a recurring handler function that marks
-// agents as "undetermined" when their last heartbeat exceeds a 2-minute threshold.
+// agents as offline when their last heartbeat exceeds a 2-minute threshold.
 // It publishes status events for each affected agent so SSE subscribers and the
 // notification system are informed.
 func (s *Server) agentHeartbeatTimeoutHandler() func(ctx context.Context) {
 	return func(ctx context.Context) {
 		threshold := time.Now().Add(-2 * time.Minute)
 
-		agents, err := s.store.MarkStaleAgentsUndetermined(ctx, threshold)
+		agents, err := s.store.MarkStaleAgentsOffline(ctx, threshold)
 		if err != nil {
 			slog.Error("Scheduler: heartbeat timeout check failed", "error", err)
 			return
@@ -844,7 +844,7 @@ func (s *Server) agentHeartbeatTimeoutHandler() func(ctx context.Context) {
 		}
 
 		if len(agents) > 0 {
-			slog.Info("Scheduler: marked stale agents as undetermined",
+			slog.Info("Scheduler: marked stale agents as offline",
 				"count", len(agents), "threshold", threshold)
 		}
 	}

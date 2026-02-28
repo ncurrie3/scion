@@ -60,12 +60,22 @@ type Event struct {
 	Data    []byte
 }
 
+// AgentDetail provides freeform context about the current activity in SSE events.
+type AgentDetail struct {
+	ToolName    string `json:"toolName,omitempty"`
+	Message     string `json:"message,omitempty"`
+	TaskSummary string `json:"taskSummary,omitempty"`
+}
+
 // AgentStatusEvent is published when an agent's status changes.
 type AgentStatusEvent struct {
-	AgentID         string `json:"agentId"`
-	GroveID         string `json:"groveId"`
-	Status          string `json:"status"`
-	ContainerStatus string `json:"containerStatus,omitempty"`
+	AgentID         string       `json:"agentId"`
+	GroveID         string       `json:"groveId"`
+	Status          string       `json:"status"`
+	Phase           string       `json:"phase,omitempty"`
+	Activity        string       `json:"activity,omitempty"`
+	Detail          *AgentDetail `json:"detail,omitempty"`
+	ContainerStatus string       `json:"containerStatus,omitempty"`
 }
 
 // AgentCreatedEvent is published when an agent is created.
@@ -220,7 +230,16 @@ func (p *ChannelEventPublisher) PublishAgentStatus(_ context.Context, agent *sto
 		AgentID:         agent.ID,
 		GroveID:         agent.GroveID,
 		Status:          agent.Status,
+		Phase:           agent.Phase,
+		Activity:        agent.Activity,
 		ContainerStatus: agent.ContainerStatus,
+	}
+	if agent.ToolName != "" || agent.Message != "" || agent.TaskSummary != "" {
+		evt.Detail = &AgentDetail{
+			ToolName:    agent.ToolName,
+			Message:     agent.Message,
+			TaskSummary: agent.TaskSummary,
+		}
 	}
 	p.publish("agent."+agent.ID+".status", evt)
 	if agent.GroveID != "" {

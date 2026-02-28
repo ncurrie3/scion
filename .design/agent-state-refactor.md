@@ -526,14 +526,18 @@ This replaces the previously discussed but unimplemented "stale/stalled detectio
 4. ~~Update `pkg/sciontool/hub/client.go` to use canonical types~~
 5. ~~Remove the duplicate `AgentState` and `AgentStatus` type definitions~~
 
-### Phase 3: Refactor Hub and Store
+### Phase 3: Refactor Hub and Store ✅
 
-1. Add `phase`, `activity`, `tool_name` columns to the agents table
-2. Update `AgentStatusUpdate` struct to accept `Phase`/`Activity`/`Detail`
-3. Update `UpdateAgentStatus()` to write new columns
-4. Compute `status` (flat) from `phase`+`activity` for backward compat
-5. Update SSE event payloads to include `phase`/`activity`/`detail`
-6. Update the ent schema to match (or fully replace ent status enum with the new phase enum)
+1. ~~Add `phase`, `activity`, `tool_name` columns to the agents table~~
+2. ~~Update `AgentStatusUpdate` struct to accept `Phase`/`Activity`/`Detail`~~
+3. ~~Update `UpdateAgentStatus()` to write new columns~~
+4. ~~Compute `status` (flat) from `phase`+`activity` for backward compat~~
+5. ~~Update SSE event payloads to include `phase`/`activity`/`detail`~~
+6. ~~Update the ent schema to match (or fully replace ent status enum with the new phase enum)~~
+7. ~~Rename `MarkStaleAgentsUndetermined` → `MarkStaleAgentsOffline` (uses phase/activity)~~
+8. ~~Update broker heartbeat handler to set phase alongside status~~
+9. ~~Update notification system to match on activity when available~~
+10. ~~Add `AgentDetail` to API types and `ToAPI()` conversion~~
 
 ### Phase 4: Refactor Runtime Broker
 

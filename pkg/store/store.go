@@ -121,12 +121,11 @@ type AgentStore interface {
 	// Returns the number of agents purged.
 	PurgeDeletedAgents(ctx context.Context, cutoff time.Time) (int, error)
 
-	// MarkStaleAgentsUndetermined marks agents whose last heartbeat is older
-	// than threshold as "undetermined". Only affects agents in active states
-	// (running, busy, idle, waiting_for_input, provisioning, cloning) that have
-	// reported at least one heartbeat. Returns the updated agent records for
-	// event publishing.
-	MarkStaleAgentsUndetermined(ctx context.Context, threshold time.Time) ([]Agent, error)
+	// MarkStaleAgentsOffline marks agents whose last heartbeat is older
+	// than threshold as offline. Only affects agents with phase=running whose
+	// activity is not a terminal sticky state (completed, limits_exceeded).
+	// Returns the updated agent records for event publishing.
+	MarkStaleAgentsOffline(ctx context.Context, threshold time.Time) ([]Agent, error)
 }
 
 // AgentFilter defines criteria for filtering agents.
@@ -141,6 +140,9 @@ type AgentFilter struct {
 // AgentStatusUpdate contains fields for status-only updates.
 type AgentStatusUpdate struct {
 	Status          string            `json:"status,omitempty"`
+	Phase           string            `json:"phase,omitempty"`
+	Activity        string            `json:"activity,omitempty"`
+	ToolName        string            `json:"toolName,omitempty"`
 	Message         string            `json:"message,omitempty"`
 	ConnectionState string            `json:"connectionState,omitempty"`
 	ContainerStatus string            `json:"containerStatus,omitempty"`

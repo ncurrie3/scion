@@ -188,7 +188,7 @@ func TestAgentStatusUpdate(t *testing.T) {
 
 	agent := &store.Agent{
 		ID:         api.NewUUID(),
-		Slug:    "test-agent",
+		Slug:       "test-agent",
 		Name:       "Test Agent",
 		Template:   "claude",
 		GroveID:    grove.ID,
@@ -197,18 +197,125 @@ func TestAgentStatusUpdate(t *testing.T) {
 	}
 	require.NoError(t, s.CreateAgent(ctx, agent))
 
-	// Update status
+	// Legacy path: update flat status only (backward compat)
 	err := s.UpdateAgentStatus(ctx, agent.ID, store.AgentStatusUpdate{
 		Status:          store.AgentStatusRunning,
 		ContainerStatus: "Up 5 minutes",
 	})
 	require.NoError(t, err)
 
-	// Verify
 	retrieved, err := s.GetAgent(ctx, agent.ID)
 	require.NoError(t, err)
 	assert.Equal(t, store.AgentStatusRunning, retrieved.Status)
 	assert.Equal(t, "Up 5 minutes", retrieved.ContainerStatus)
+
+	// Structured path: set phase + activity → status is computed
+	err = s.UpdateAgentStatus(ctx, agent.ID, store.AgentStatusUpdate{
+		Phase:    "running",
+		Activity: "thinking",
+	})
+	require.NoError(t, err)
+
+	retrieved, err = s.GetAgent(ctx, agent.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "thinking", retrieved.Status, "status should be computed from activity when phase=running")
+	assert.Equal(t, "running", retrieved.Phase)
+	assert.Equal(t, "thinking", retrieved.Activity)
+
+	// Set activity=executing with toolName
+	err = s.UpdateAgentStatus(ctx, agent.ID, store.AgentStatusUpdate{
+		Phase:    "running",
+		Activity: "executing",
+		ToolName: "Bash",
+	})
+	require.NoError(t, err)
+
+	retrieved, err = s.GetAgent(ctx, agent.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "executing", retrieved.Status)
+	assert.Equal(t, "executing", retrieved.Activity)
+	assert.Equal(t, "Bash", retrieved.ToolName)
+
+	// Change activity from executing to idle → toolName is cleared
+	err = s.UpdateAgentStatus(ctx, agent.ID, store.AgentStatusUpdate{
+		Phase:    "running",
+		Activity: "idle",
+	})
+	require.NoError(t, err)
+
+	retrieved, err = s.GetAgent(ctx, agent.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "idle", retrieved.Status)
+	assert.Equal(t, "idle", retrieved.Activity)
+	assert.Equal(t, "", retrieved.ToolName, "toolName should be cleared when activity changes away from executing")
+
+	// Set only activity (phase preserved from previous update)
+	err = s.UpdateAgentStatus(ctx, agent.ID, store.AgentStatusUpdate{
+		Activity: "waiting_for_input",
+	})
+	require.NoError(t, err)
+
+	retrieved, err = s.GetAgent(ctx, agent.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "running", retrieved.Phase, "phase should be preserved")
+	assert.Equal(t, "waiting_for_input", retrieved.Activity)
+
+	// Non-running phase: status = phase
+	err = s.UpdateAgentStatus(ctx, agent.ID, store.AgentStatusUpdate{
+		Phase: "stopped",
+	})
+	require.NoError(t, err)
+
+	retrieved, err = s.GetAgent(ctx, agent.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "stopped", retrieved.Status, "status should be the phase for non-running phases")
+	assert.Equal(t, "stopped", retrieved.Phase)
+}
+
+func TestAgentStatusUpdate_PhaseActivityRoundTrip(t *testing.T) {
+	s := setupTestStore(t)
+	ctx := context.Background()
+
+	grove := &store.Grove{
+		ID:         api.NewUUID(),
+		Name:       "Test Grove",
+		Slug:       "test-grove-rt",
+		Visibility: store.VisibilityPrivate,
+	}
+	require.NoError(t, s.CreateGrove(ctx, grove))
+
+	// Create agent with initial phase/activity
+	agent := &store.Agent{
+		ID:         api.NewUUID(),
+		Slug:       "roundtrip-agent",
+		Name:       "Roundtrip Agent",
+		Template:   "claude",
+		GroveID:    grove.ID,
+		Status:     "running",
+		Phase:      "running",
+		Activity:   "idle",
+		Visibility: store.VisibilityPrivate,
+	}
+	require.NoError(t, s.CreateAgent(ctx, agent))
+
+	// Verify round-trip through Get
+	retrieved, err := s.GetAgent(ctx, agent.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "running", retrieved.Phase)
+	assert.Equal(t, "idle", retrieved.Activity)
+
+	// Verify round-trip through GetBySlug
+	retrieved, err = s.GetAgentBySlug(ctx, grove.ID, "roundtrip-agent")
+	require.NoError(t, err)
+	assert.Equal(t, "running", retrieved.Phase)
+	assert.Equal(t, "idle", retrieved.Activity)
+
+	// Verify round-trip through List
+	result, err := s.ListAgents(ctx, store.AgentFilter{GroveID: grove.ID}, store.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, result.Items, 1)
+	assert.Equal(t, "running", result.Items[0].Phase)
+	assert.Equal(t, "idle", result.Items[0].Activity)
 }
 
 func TestSoftDeleteFilterExclusion(t *testing.T) {
@@ -1220,10 +1327,10 @@ func TestCascadeDelete(t *testing.T) {
 }
 
 // ============================================================================
-// MarkStaleAgentsUndetermined Tests
+// MarkStaleAgentsOffline Tests
 // ============================================================================
 
-func TestMarkStaleAgentsUndetermined(t *testing.T) {
+func TestMarkStaleAgentsOffline(t *testing.T) {
 	s := setupTestStore(t)
 	ctx := context.Background()
 
@@ -1235,26 +1342,18 @@ func TestMarkStaleAgentsUndetermined(t *testing.T) {
 	}
 	require.NoError(t, s.CreateGrove(ctx, grove))
 
-	// Create agents in various states with stale heartbeats (last_seen 5 minutes ago)
 	staleTime := time.Now().Add(-5 * time.Minute)
 	threshold := time.Now().Add(-2 * time.Minute)
 
-	// These agents should be marked undetermined (active states with stale heartbeat)
-	activeStatuses := []string{
-		store.AgentStatusRunning,
-		store.AgentStatusBusy,
-		store.AgentStatusIdle,
-		store.AgentStatusWaitingForInput,
-		store.AgentStatusProvisioning,
-		store.AgentStatusCloning,
-	}
+	// These agents have phase=running with non-sticky activities → should be marked offline
+	activeActivities := []string{"idle", "thinking", "executing", "waiting_for_input"}
 
 	var expectedIDs []string
-	for i, status := range activeStatuses {
+	for i, activity := range activeActivities {
 		agent := &store.Agent{
 			ID:         api.NewUUID(),
-			Slug:       "active-agent-" + status,
-			Name:       "Active Agent " + status,
+			Slug:       "active-agent-" + activity,
+			Name:       "Active Agent " + activity,
 			Template:   "claude",
 			GroveID:    grove.ID,
 			Status:     store.AgentStatusPending,
@@ -1262,11 +1361,12 @@ func TestMarkStaleAgentsUndetermined(t *testing.T) {
 		}
 		require.NoError(t, s.CreateAgent(ctx, agent))
 
-		// Set the agent to the active status and give it a stale last_seen
+		// Set to running phase with activity
 		err := s.UpdateAgentStatus(ctx, agent.ID, store.AgentStatusUpdate{
-			Status: status,
+			Phase:    "running",
+			Activity: activity,
 		})
-		require.NoError(t, err, "setting status for agent %d", i)
+		require.NoError(t, err, "setting activity for agent %d", i)
 
 		// Manually set last_seen to stale time
 		_, err = s.db.ExecContext(ctx, "UPDATE agents SET last_seen = ? WHERE id = ?", staleTime, agent.ID)
@@ -1275,97 +1375,95 @@ func TestMarkStaleAgentsUndetermined(t *testing.T) {
 		expectedIDs = append(expectedIDs, agent.ID)
 	}
 
-	// These agents should NOT be marked undetermined
+	// These agents should NOT be marked offline
 
-	// Terminal state: stopped
-	stoppedAgent := &store.Agent{
-		ID: api.NewUUID(), Slug: "stopped-agent", Name: "Stopped Agent",
-		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusStopped,
-		Visibility: store.VisibilityPrivate,
-	}
-	require.NoError(t, s.CreateAgent(ctx, stoppedAgent))
-	_, err := s.db.ExecContext(ctx, "UPDATE agents SET last_seen = ? WHERE id = ?", staleTime, stoppedAgent.ID)
-	require.NoError(t, err)
-
-	// Terminal state: completed
+	// Sticky activity: completed (phase=running)
 	completedAgent := &store.Agent{
 		ID: api.NewUUID(), Slug: "completed-agent", Name: "Completed Agent",
-		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusCompleted,
+		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusPending,
 		Visibility: store.VisibilityPrivate,
 	}
 	require.NoError(t, s.CreateAgent(ctx, completedAgent))
-	_, err = s.db.ExecContext(ctx, "UPDATE agents SET last_seen = ? WHERE id = ?", staleTime, completedAgent.ID)
+	require.NoError(t, s.UpdateAgentStatus(ctx, completedAgent.ID, store.AgentStatusUpdate{
+		Phase: "running", Activity: "completed",
+	}))
+	_, err := s.db.ExecContext(ctx, "UPDATE agents SET last_seen = ? WHERE id = ?", staleTime, completedAgent.ID)
 	require.NoError(t, err)
 
-	// Terminal state: error
-	errorAgent := &store.Agent{
-		ID: api.NewUUID(), Slug: "error-agent", Name: "Error Agent",
-		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusError,
+	// Sticky activity: limits_exceeded (phase=running)
+	limitsAgent := &store.Agent{
+		ID: api.NewUUID(), Slug: "limits-agent", Name: "Limits Agent",
+		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusPending,
 		Visibility: store.VisibilityPrivate,
 	}
-	require.NoError(t, s.CreateAgent(ctx, errorAgent))
-	_, err = s.db.ExecContext(ctx, "UPDATE agents SET last_seen = ? WHERE id = ?", staleTime, errorAgent.ID)
+	require.NoError(t, s.CreateAgent(ctx, limitsAgent))
+	require.NoError(t, s.UpdateAgentStatus(ctx, limitsAgent.ID, store.AgentStatusUpdate{
+		Phase: "running", Activity: "limits_exceeded",
+	}))
+	_, err = s.db.ExecContext(ctx, "UPDATE agents SET last_seen = ? WHERE id = ?", staleTime, limitsAgent.ID)
 	require.NoError(t, err)
 
-	// No heartbeat yet (last_seen is NULL)
-	noHeartbeatAgent := &store.Agent{
-		ID: api.NewUUID(), Slug: "no-heartbeat", Name: "No Heartbeat Agent",
-		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusRunning,
+	// Non-running phase: stopped
+	stoppedAgent := &store.Agent{
+		ID: api.NewUUID(), Slug: "stopped-agent", Name: "Stopped Agent",
+		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusStopped,
+		Phase: "stopped",
 		Visibility: store.VisibilityPrivate,
 	}
-	require.NoError(t, s.CreateAgent(ctx, noHeartbeatAgent))
-	// last_seen is NULL by default from CreateAgent (the zero time.Time becomes NULL)
+	require.NoError(t, s.CreateAgent(ctx, stoppedAgent))
+	_, err = s.db.ExecContext(ctx, "UPDATE agents SET last_seen = ? WHERE id = ?", staleTime, stoppedAgent.ID)
+	require.NoError(t, err)
 
 	// Recent heartbeat (should not be affected)
 	recentAgent := &store.Agent{
 		ID: api.NewUUID(), Slug: "recent-agent", Name: "Recent Agent",
-		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusRunning,
+		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusPending,
 		Visibility: store.VisibilityPrivate,
 	}
 	require.NoError(t, s.CreateAgent(ctx, recentAgent))
-	err = s.UpdateAgentStatus(ctx, recentAgent.ID, store.AgentStatusUpdate{
-		Status: store.AgentStatusRunning,
-	})
-	require.NoError(t, err)
+	require.NoError(t, s.UpdateAgentStatus(ctx, recentAgent.ID, store.AgentStatusUpdate{
+		Phase: "running", Activity: "idle",
+	}))
 	// last_seen is set to now by UpdateAgentStatus, which is within the threshold
 
 	// Execute
-	agents, err := s.MarkStaleAgentsUndetermined(ctx, threshold)
+	agents, err := s.MarkStaleAgentsOffline(ctx, threshold)
 	require.NoError(t, err)
-	assert.Len(t, agents, len(activeStatuses), "should only mark active stale agents")
+	assert.Len(t, agents, len(activeActivities), "should only mark running stale agents with non-sticky activities")
 
-	// Verify the returned agents match expected
+	// Verify the returned agents
 	returnedIDs := make(map[string]bool)
 	for _, a := range agents {
 		returnedIDs[a.ID] = true
-		assert.Equal(t, store.AgentStatusUndetermined, a.Status, "returned agent should have undetermined status")
+		assert.Equal(t, "offline", a.Activity, "returned agent should have offline activity")
+		assert.Equal(t, "running", a.Phase, "returned agent should still have running phase")
+		assert.Equal(t, store.AgentStatusOffline, a.Status, "returned agent should have offline status")
 	}
 	for _, id := range expectedIDs {
 		assert.True(t, returnedIDs[id], "expected agent %s to be in returned set", id)
 	}
 
-	// Verify agents in DB are actually updated
-	for _, id := range expectedIDs {
-		a, err := s.GetAgent(ctx, id)
-		require.NoError(t, err)
-		assert.Equal(t, store.AgentStatusUndetermined, a.Status, "DB agent should have undetermined status")
-	}
-
-	// Verify non-target agents were NOT affected
-	a, err := s.GetAgent(ctx, stoppedAgent.ID)
+	// Verify sticky activities were NOT affected
+	a, err := s.GetAgent(ctx, completedAgent.ID)
 	require.NoError(t, err)
-	assert.Equal(t, store.AgentStatusStopped, a.Status)
+	assert.Equal(t, "completed", a.Activity)
 
-	a, err = s.GetAgent(ctx, completedAgent.ID)
+	a, err = s.GetAgent(ctx, limitsAgent.ID)
 	require.NoError(t, err)
-	assert.Equal(t, store.AgentStatusCompleted, a.Status)
+	assert.Equal(t, "limits_exceeded", a.Activity)
 
+	// Verify stopped agent was NOT affected
+	a, err = s.GetAgent(ctx, stoppedAgent.ID)
+	require.NoError(t, err)
+	assert.Equal(t, "stopped", a.Phase)
+
+	// Verify recent agent was NOT affected
 	a, err = s.GetAgent(ctx, recentAgent.ID)
 	require.NoError(t, err)
-	assert.Equal(t, store.AgentStatusRunning, a.Status)
+	assert.Equal(t, "idle", a.Activity)
 }
 
-func TestMarkStaleAgentsUndetermined_Idempotent(t *testing.T) {
+func TestMarkStaleAgentsOffline_Idempotent(t *testing.T) {
 	s := setupTestStore(t)
 	ctx := context.Background()
 
@@ -1382,32 +1480,35 @@ func TestMarkStaleAgentsUndetermined_Idempotent(t *testing.T) {
 
 	agent := &store.Agent{
 		ID: api.NewUUID(), Slug: "stale-agent", Name: "Stale Agent",
-		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusRunning,
+		Template: "claude", GroveID: grove.ID, Status: store.AgentStatusPending,
 		Visibility: store.VisibilityPrivate,
 	}
 	require.NoError(t, s.CreateAgent(ctx, agent))
+	require.NoError(t, s.UpdateAgentStatus(ctx, agent.ID, store.AgentStatusUpdate{
+		Phase: "running", Activity: "idle",
+	}))
 	_, err := s.db.ExecContext(ctx, "UPDATE agents SET last_seen = ? WHERE id = ?", staleTime, agent.ID)
 	require.NoError(t, err)
 
-	// First call should mark it undetermined
-	agents, err := s.MarkStaleAgentsUndetermined(ctx, threshold)
+	// First call should mark it offline
+	agents, err := s.MarkStaleAgentsOffline(ctx, threshold)
 	require.NoError(t, err)
 	assert.Len(t, agents, 1)
 
-	// Second call should return empty (already undetermined)
-	agents, err = s.MarkStaleAgentsUndetermined(ctx, threshold)
+	// Second call should return empty (already offline)
+	agents, err = s.MarkStaleAgentsOffline(ctx, threshold)
 	require.NoError(t, err)
-	assert.Len(t, agents, 0, "should not re-mark already undetermined agents")
+	assert.Len(t, agents, 0, "should not re-mark already offline agents")
 }
 
-func TestMarkStaleAgentsUndetermined_NoStaleAgents(t *testing.T) {
+func TestMarkStaleAgentsOffline_NoStaleAgents(t *testing.T) {
 	s := setupTestStore(t)
 	ctx := context.Background()
 
 	threshold := time.Now().Add(-2 * time.Minute)
 
 	// No agents at all
-	agents, err := s.MarkStaleAgentsUndetermined(ctx, threshold)
+	agents, err := s.MarkStaleAgentsOffline(ctx, threshold)
 	require.NoError(t, err)
 	assert.Len(t, agents, 0)
 }

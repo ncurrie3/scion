@@ -40,6 +40,9 @@ type Agent struct {
 
 	// Status
 	Status          string `json:"status"`                    // provisioning, running, stopped, error, busy, idle, waiting_for_input, completed
+	Phase           string `json:"phase,omitempty"`           // Lifecycle phase (from state.Phase)
+	Activity        string `json:"activity,omitempty"`        // Runtime activity (from state.Activity)
+	ToolName        string `json:"toolName,omitempty"`        // Tool name when activity=executing
 	ConnectionState string `json:"connectionState,omitempty"` // connected, disconnected, unknown
 	ContainerStatus string `json:"containerStatus,omitempty"` // Container-level status
 	RuntimeState    string `json:"runtimeState,omitempty"`    // Low-level runtime state
@@ -118,6 +121,8 @@ const (
 	AgentStatusIdle            = "idle"
 	AgentStatusWaitingForInput = "waiting_for_input"
 	AgentStatusCompleted       = "completed"
+	AgentStatusLimitsExceeded  = "limits_exceeded"
+	AgentStatusOffline         = "offline"
 	AgentStatusDeleted         = "deleted"
 	AgentStatusRestored        = "restored"
 	AgentStatusUndetermined    = "undetermined"
@@ -875,6 +880,8 @@ func (a *Agent) ToAPI() *api.AgentInfo {
 
 		// Status
 		Status:          a.Status,
+		Phase:           a.Phase,
+		Activity:        a.Activity,
 		ContainerStatus: a.ContainerStatus,
 		RuntimeState:    a.RuntimeState,
 
@@ -908,6 +915,15 @@ func (a *Agent) ToAPI() *api.AgentInfo {
 		}
 		if info.HarnessConfig == "" && a.AppliedConfig.HarnessConfig != "" {
 			info.HarnessConfig = a.AppliedConfig.HarnessConfig
+		}
+	}
+
+	// Populate detail when any detail fields are present
+	if a.ToolName != "" || a.Message != "" || a.TaskSummary != "" {
+		info.Detail = &api.AgentDetail{
+			ToolName:    a.ToolName,
+			Message:     a.Message,
+			TaskSummary: a.TaskSummary,
 		}
 	}
 

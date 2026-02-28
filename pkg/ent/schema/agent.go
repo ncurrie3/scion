@@ -46,8 +46,8 @@ func (Agent) Fields() []ent.Field {
 			Optional(),
 		field.UUID("grove_id", uuid.UUID{}),
 		field.Enum("status").
-			Values("provisioning", "running", "stopped", "error", "pending").
-			Default("pending"),
+			Values("created", "provisioning", "cloning", "starting", "running", "stopping", "stopped", "error").
+			Default("created"),
 		field.UUID("created_by", uuid.UUID{}).
 			Optional().
 			Nillable(),
