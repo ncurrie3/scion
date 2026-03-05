@@ -302,6 +302,11 @@ func (m *AgentManager) Start(ctx context.Context, opts api.StartOptions) (*api.A
 			opts.BrokerMode,
 		)
 		harness.OverlaySettings(&auth, h, agentHome)
+		// Apply CLI harness auth override (--harness-auth) before resolution.
+		// This has highest priority, overriding settings, templates, and harness configs.
+		if opts.HarnessAuth != "" {
+			auth.SelectedType = opts.HarnessAuth
+		}
 		util.Debugf("auth: after overlay — selectedType=%q", auth.SelectedType)
 		resolved, err := h.ResolveAuth(auth)
 		if err != nil {
@@ -457,14 +462,13 @@ func (m *AgentManager) Start(ctx context.Context, opts api.StartOptions) (*api.A
 		}
 	}
 
-	// Apply CLI harness auth override (--harness-auth).
-	// This has highest priority, overriding settings, templates, and harness configs.
+	// Persist harness auth override to scion-agent.json so sciontool inside the container sees it.
+	// The actual auth resolution override is applied earlier in the auth gathering block.
 	if opts.HarnessAuth != "" {
 		if finalScionCfg == nil {
 			finalScionCfg = &api.ScionConfig{}
 		}
 		finalScionCfg.AuthSelectedType = opts.HarnessAuth
-		// Persist to scion-agent.json so sciontool inside the container sees the override.
 		cfgData, marshalErr := json.MarshalIndent(finalScionCfg, "", "  ")
 		if marshalErr == nil {
 			_ = os.WriteFile(filepath.Join(agentDir, "scion-agent.json"), cfgData, 0644)
