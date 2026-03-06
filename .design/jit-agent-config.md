@@ -1,4 +1,4 @@
-# JIT Agent Configuration: Inline Config at Agent Creation Time
+# Inline Agent Configuration: Late-Binding Config at Agent Creation Time
 
 **Status:** Draft
 **Created:** 2026-03-06
@@ -22,29 +22,31 @@ The Hub web UI amplifies this problem: building a form that exposes all agent op
 
 ### Goal
 
-Allow agents to be started with an **inline configuration object** — a self-contained document that can express the full range of agent configuration without requiring pre-existing template or harness-config artifacts on disk. This is referred to as "JIT (Just-In-Time) Agent Config."
+Allow agents to be started with an **inline configuration object** — a self-contained document that can express the full range of agent configuration without requiring pre-existing template or harness-config artifacts on disk.
+
+Conceptually, this is "just-in-time" or "late-binding" configuration: the agent's settings are provided at creation time rather than being pre-staged as template artifacts. The implementation achieves this by evolving `ScionConfig` into a superset that absorbs fields currently scattered across harness-config entries, template content files, and CLI flags.
 
 ### Design Principles
 
-1. **Additive** — JIT config is a new input path, not a replacement. Templates and harness configs continue to work as before.
-2. **Superset** — The JIT config schema is a superset of `ScionConfig` (the current `scion-agent.yaml` format), extended with fields that today live outside the config file (system prompt content, harness-config details).
-3. **Explicit over composed** — When a JIT config is provided, its values are authoritative. The multi-layer merge behavior is simplified: JIT config is the "template equivalent," composed only with broker/runtime-level concerns.
-4. **Backwards compatible** — Existing `scion start --type my-template` workflows are unaffected.
+1. **Additive** — Inline config is a new input path, not a replacement. Templates and harness configs continue to work as before.
+2. **Superset via evolution** — `ScionConfig` itself is expanded to absorb fields that today live outside the config file (system prompt content, harness-config details). No new parallel config type is introduced.
+3. **Explicit over composed** — When an inline config is provided, its values are authoritative. The multi-layer merge behavior is simplified: inline config is the "template equivalent," composed only with broker/runtime-level concerns.
+4. **Backwards compatible** — Existing `scion start --type my-template` workflows are unaffected. Existing `scion-agent.yaml` files remain valid.
 
 ---
 
 ## 2. Current State
 
-### Configuration Sources (Precedence, Low → High)
+### Configuration Sources (Precedence, Low -> High)
 
 ```
 Embedded defaults
-  → Global settings (~/.scion/settings.yaml)
-    → Grove settings (.scion/settings.yaml)
-      → Template chain (scion-agent.yaml, inherited)
-        → Harness-config (config.yaml + home/ files)
-          → Agent-persisted config (scion-agent.json)
-            → CLI flags (--image, --enable-telemetry, etc.)
+  -> Global settings (~/.scion/settings.yaml)
+    -> Grove settings (.scion/settings.yaml)
+      -> Template chain (scion-agent.yaml, inherited)
+        -> Harness-config (config.yaml + home/ files)
+          -> Agent-persisted config (scion-agent.json)
+            -> CLI flags (--image, --enable-telemetry, etc.)
 ```
 
 ### What Lives Where Today
@@ -72,7 +74,7 @@ The current `ScionConfig` struct already captures most of these concerns. The ga
 
 1. **System prompt and agent instructions** — stored as file references in `ScionConfig` (`system_prompt: system-prompt.md`) but the actual content lives as files alongside the template. The config references a filename, not inline content.
 2. **Harness-config details** — the container user, task flag, default CLI args, and auth method come from `HarnessConfigEntry`, not from `ScionConfig`.
-3. **Home directory files** — harness-config `home/` directories provide files like `.claude.json`, `.bashrc`, etc. These are filesystem artifacts that can't be expressed inline.
+3. **Home directory files** — harness-config `home/` directories provide files like `.claude.json`, `.bashrc`, etc. These are filesystem artifacts that can't be expressed inline. This is the trickiest gap to close, and we accept that templates and harness configs will remain the mechanism for home directory file provisioning. The goal is to capture as much of the common-denominator configuration as possible in the expanded `ScionConfig`.
 
 ### Existing Partial Precedent
 
@@ -87,87 +89,127 @@ type AgentConfigOverride struct {
 }
 ```
 
-And `hubclient.AgentConfig` similarly has `Image`, `HarnessConfig`, `HarnessAuth`, `Env`, `Model`, `Task`. These are narrow override surfaces — the JIT config proposal generalizes this.
+And `hubclient.AgentConfig` similarly has `Image`, `HarnessConfig`, `HarnessAuth`, `Env`, `Model`, `Task`. These are narrow override surfaces that exist because `ScionConfig` wasn't expressive enough to serve as the inline config document. By expanding `ScionConfig` to cover these cases, we can replace `AgentConfigOverride` and thread a full `ScionConfig` through more of the agent creation process — eliminating the need for ad-hoc override structs.
 
 ---
 
 ## 3. Proposed Design
 
-### 3.1 JIT Config Schema
+### 3.1 Expanded ScionConfig Schema
 
-A new `JITAgentConfig` type that is a superset of `ScionConfig`, adding fields that today require separate artifacts:
+Rather than introducing a new parallel type, we expand `ScionConfig` itself with the fields that today require separate artifacts. This keeps a single authoritative config type and ensures that `scion-agent.yaml` files in templates immediately gain inline content support.
+
+New fields added to `ScionConfig`:
 
 ```go
-// JITAgentConfig is a self-contained agent configuration document.
-// It extends ScionConfig with fields that normally come from harness-config
-// artifacts and template content files.
-type JITAgentConfig struct {
-    // === All existing ScionConfig fields ===
-    Harness            string            `json:"harness,omitempty" yaml:"harness,omitempty"`
-    HarnessConfig      string            `json:"harness_config,omitempty" yaml:"harness_config,omitempty"`
-    Image              string            `json:"image,omitempty" yaml:"image,omitempty"`
-    Env                map[string]string `json:"env,omitempty" yaml:"env,omitempty"`
-    Volumes            []VolumeMount     `json:"volumes,omitempty" yaml:"volumes,omitempty"`
-    Detached           *bool             `json:"detached,omitempty" yaml:"detached,omitempty"`
-    CommandArgs        []string          `json:"command_args,omitempty" yaml:"command_args,omitempty"`
-    TaskFlag           string            `json:"task_flag,omitempty" yaml:"task_flag,omitempty"`
-    Model              string            `json:"model,omitempty" yaml:"model,omitempty"`
-    AuthSelectedType   string            `json:"auth_selected_type,omitempty" yaml:"auth_selected_type,omitempty"`
-    Resources          *ResourceSpec     `json:"resources,omitempty" yaml:"resources,omitempty"`
-    Kubernetes         *KubernetesConfig `json:"kubernetes,omitempty" yaml:"kubernetes,omitempty"`
-    Services           []ServiceSpec     `json:"services,omitempty" yaml:"services,omitempty"`
-    MaxTurns           int               `json:"max_turns,omitempty" yaml:"max_turns,omitempty"`
-    MaxModelCalls      int               `json:"max_model_calls,omitempty" yaml:"max_model_calls,omitempty"`
-    MaxDuration        string            `json:"max_duration,omitempty" yaml:"max_duration,omitempty"`
-    Hub                *AgentHubConfig   `json:"hub,omitempty" yaml:"hub,omitempty"`
-    Telemetry          *TelemetryConfig  `json:"telemetry,omitempty" yaml:"telemetry,omitempty"`
-    Secrets            []RequiredSecret  `json:"secrets,omitempty" yaml:"secrets,omitempty"`
+// Added to the existing ScionConfig struct in pkg/api/types.go
 
-    // === Content fields (inline instead of file references) ===
-    // When set, these contain the actual content rather than a filename.
-    AgentInstructions  string `json:"agent_instructions,omitempty" yaml:"agent_instructions,omitempty"`
-    SystemPrompt       string `json:"system_prompt,omitempty" yaml:"system_prompt,omitempty"`
+// === Content fields (inline instead of file references) ===
+// When set, these contain the actual content rather than a filename.
+// The content resolution logic checks: if the value looks like a filename
+// (no newlines, ends in a known extension), treat it as a file reference;
+// otherwise treat it as inline content.
+//
+// Note: system_prompt and agent_instructions already exist on ScionConfig
+// as file-reference fields. The change is in how the values are resolved,
+// not in the schema itself.
 
-    // === Harness-config inline fields ===
-    // These replace the need for a separate harness-config directory.
-    User               string   `json:"user,omitempty" yaml:"user,omitempty"`           // Container unix user
+// === Harness-config fields absorbed into ScionConfig ===
+User             string   `json:"user,omitempty" yaml:"user,omitempty"`             // Container unix user
+AuthSelectedType string   `json:"auth_selected_type,omitempty" yaml:"auth_selected_type,omitempty"`
 
-    // === Agent metadata ===
-    Task               string `json:"task,omitempty" yaml:"task,omitempty"`
-    Branch             string `json:"branch,omitempty" yaml:"branch,omitempty"`
+// === Agent operational parameters ===
+Task             string   `json:"task,omitempty" yaml:"task,omitempty"`
+Branch           string   `json:"branch,omitempty" yaml:"branch,omitempty"`
+```
+
+#### Content Field Resolution
+
+The `system_prompt` and `agent_instructions` fields already exist on `ScionConfig` today, but only accept filenames. The key change is extending the content resolution logic:
+
+```go
+func ResolveContent(value string, templateDir string) (string, error) {
+    // If the value contains newlines, it's inline content
+    if strings.Contains(value, "\n") {
+        return value, nil
+    }
+    // If it looks like a file path, try to read it from the template dir
+    if templateDir != "" && looksLikeFilePath(value) {
+        content, err := os.ReadFile(filepath.Join(templateDir, value))
+        if err == nil {
+            return string(content), nil
+        }
+    }
+    // Fall back to treating as inline content
+    return value, nil
 }
 ```
 
-### 3.2 Relationship to ScionConfig
+This is fully backwards compatible: existing `system_prompt: system-prompt.md` references continue to resolve as file paths; new inline content like `system_prompt: "You are a code reviewer."` works without any template directory.
 
-`JITAgentConfig` is not a new parallel type — it's a presentation format that maps onto the existing `ScionConfig` plus `HarnessConfigEntry` plus content. The conversion is:
+#### Pressure Testing: Why Expand ScionConfig Instead of a New Type?
+
+A separate type (e.g., `JITAgentConfig`) was considered and rejected. Here is the analysis:
+
+**Concern: Bloating `scion-agent.json`**
+
+`ScionConfig` is serialized to `scion-agent.json` in every agent directory. Adding fields like `user`, `task`, and potentially large inline content could bloat this file.
+
+*Mitigation:* Fields like `task` and `branch` are operational parameters that are consumed at agent creation time and don't need to persist in `scion-agent.json`. We can use a `json:"-"` tag or a separate serialization path to exclude them from the persisted config. The `user` field is a small string. Inline content for `system_prompt` and `agent_instructions` replaces what would otherwise be a separate file on disk — the total data stored is the same.
+
+**Concern: Conceptual muddling — input format vs. resolved config**
+
+`ScionConfig` serves as both a user-facing input (`scion-agent.yaml`) and a resolved/persisted output (`scion-agent.json`). Adding operational parameters like `task` blurs this.
+
+*Mitigation:* This is manageable with field-level documentation and selective serialization. The benefit of a single type — no conversion logic, no impedance mismatch, no two types drifting out of sync — outweighs the conceptual cost. Fields can be annotated with comments distinguishing "input-only" from "persisted" fields.
+
+**Concern: Some fields only make sense in certain contexts**
+
+`Branch` and `task` are meaningful at creation time but not in a template. `user` is meaningful in a template but is currently on `HarnessConfigEntry`.
+
+*Mitigation:* Templates can simply omit fields that don't apply. YAML/JSON `omitempty` handles this naturally. A field being present on the type doesn't mean it must be set in every context.
+
+**Verdict:** Expanding `ScionConfig` is the right approach. The single-type model is simpler, avoids conversion logic, and means improvements to the schema automatically benefit both templates and inline configs.
+
+### 3.2 Threading ScionConfig Through Agent Creation
+
+Today, agent creation involves assembling config from multiple sources into a `ScionConfig`, plus separately extracting `HarnessConfigEntry` fields and content files. With the expanded `ScionConfig`:
+
+1. **`ScionConfig` becomes the single carrier** for configuration data through the creation pipeline. The provisioning code receives one `ScionConfig` rather than a `ScionConfig` plus side-channel overrides.
+2. **`AgentConfigOverride` is replaced.** The Hub API and `hubclient.AgentConfig` can accept a full `ScionConfig` instead of an ad-hoc subset of fields. This eliminates the need for `AgentConfigOverride` and its limited field set.
+3. **`HarnessConfigEntry` fields are resolved from `ScionConfig`.** When `user` or `auth_selected_type` is set on `ScionConfig`, those values are used. When not set, the harness-config defaults still apply. The `HarnessConfigEntry` struct remains for harness-config files (`config.yaml`), but its values are lower-precedence than `ScionConfig`.
 
 ```
-JITAgentConfig
-  ├── maps to ScionConfig (most fields 1:1)
-  ├── maps to HarnessConfigEntry (user, task_flag, command_args, auth_selected_type)
-  └── provides inline content (system_prompt, agent_instructions → written to files)
+Precedence with inline config:
+
+Embedded defaults
+  -> Global/Grove settings
+    -> Template scion-agent.yaml
+      -> Harness-config config.yaml (for user, auth, home/ files)
+        -> Inline config (--config file) merged over template
+          -> CLI flags (--image, etc.) merged over inline config
+            -> Runtime concerns (env expansion, auth injection)
 ```
 
-A `ToScionConfig()` method converts a `JITAgentConfig` into the existing `ScionConfig` struct, and a `ToHarnessConfigEntry()` extracts harness-config-level fields.
+Home directory files (`.claude.json`, `.bashrc`, etc.) remain the domain of harness-config `home/` directories. The `harness_config` field on `ScionConfig` can reference a harness-config by name to pick up these files, even when all other config is provided inline.
 
-### 3.3 Merge Semantics When JIT Config Is Present
+### 3.3 Merge Semantics When Inline Config Is Present
 
-When a JIT config is provided:
+When an inline config is provided:
 
 ```
 Base template (if --type also specified)
-  → JIT config merged over base (JIT wins)
-    → CLI flags merged over JIT (flags win)
-      → Runtime concerns (auth, env expansion) applied last
+  -> Inline config merged over base (inline wins)
+    -> CLI flags merged over inline (flags win)
+      -> Runtime concerns (auth, env expansion) applied last
 ```
 
-When a JIT config is provided **without** `--type`:
-- The `harness` field in JIT config determines the harness (required in this case)
+When an inline config is provided **without** `--type`:
+- The `harness` field in the config determines the harness (required in this case)
 - A harness-config name can still be specified to pick up `home/` directory files
 - If no harness-config is specified, the harness's embedded defaults are used
 
-This means JIT config **replaces** the template layer but still composes with harness-config `home/` files and runtime-level concerns.
+This means inline config **replaces** the template layer but still composes with harness-config `home/` files and runtime-level concerns.
 
 ### 3.4 CLI Interface
 
@@ -178,7 +220,7 @@ scion start my-agent --config agent-config.yaml
 # From stdin (pipe from another tool)
 cat config.yaml | scion start my-agent --config -
 
-# Combined with a base template (JIT overrides template)
+# Combined with a base template (inline overrides template)
 scion start my-agent --type base-template --config overrides.yaml
 
 # CLI flags still override everything
@@ -189,104 +231,100 @@ The `--config` flag accepts a path to a YAML or JSON file. A value of `-` reads 
 
 ### 3.5 Hub API Interface
 
-The existing `CreateAgentRequest` is extended:
+The existing `CreateAgentRequest` is extended to accept a full `ScionConfig`:
 
 ```go
 // In pkg/hub/handlers.go
 type CreateAgentRequest struct {
-    Name          string               `json:"name"`
-    GroveID       string               `json:"groveId"`
-    Template      string               `json:"template,omitempty"`
+    Name          string        `json:"name"`
+    GroveID       string        `json:"groveId"`
+    Template      string        `json:"template,omitempty"`
     // ... existing fields ...
 
-    // JITConfig provides a complete inline agent configuration.
+    // Config provides a complete inline agent configuration.
     // When set, this replaces the template as the primary config source.
-    // If Template is also set, JITConfig is merged over the template config.
-    JITConfig     *JITAgentConfig      `json:"jitConfig,omitempty"`
+    // If Template is also set, Config is merged over the template config.
+    // This replaces the previous AgentConfigOverride approach.
+    Config        *ScionConfig  `json:"config,omitempty"`
 }
 ```
 
-The Hub handler treats `JITConfig` as a template-equivalent: it extracts the relevant fields and passes them through to the broker in the `RemoteCreateAgentRequest`.
+The Hub handler treats `Config` as a template-equivalent: it extracts the relevant fields and passes them through to the broker in the `RemoteCreateAgentRequest`.
 
 ### 3.6 Web UI Integration
 
-With JIT config, the Hub web UI can present a form with all agent options:
+With inline config, the Hub web UI can present a form with all agent options:
 
 ```
-┌─────────────────────────────────────────┐
-│  Create Agent                           │
-├─────────────────────────────────────────┤
-│  Name: [________________]               │
-│  Grove: [dropdown________]              │
-│                                         │
-│  ── Configuration ──                    │
-│  Base Template: [optional dropdown]     │
-│  Harness: [claude ▼]                    │
-│  Model: [________________]              │
-│  Image: [________________]              │
-│                                         │
-│  ── Limits ──                           │
-│  Max Turns: [____]  Max Duration: [___] │
-│                                         │
-│  ── Environment ──                      │
-│  [KEY] = [VALUE]        [+ Add]         │
-│                                         │
-│  ── System Prompt ──                    │
-│  [multiline editor........................│
-│  .........................................│
-│                                         │
-│  ── Task ──                             │
-│  [multiline editor........................│
-│  .........................................│
-│                                         │
-│  [Advanced: Resources, Telemetry, ...]  │
-│                                         │
-│  [Create Agent]                         │
-└─────────────────────────────────────────┘
++---------------------------------------------+
+|  Create Agent                               |
++---------------------------------------------+
+|  Name: [________________]                   |
+|  Grove: [dropdown________]                  |
+|                                             |
+|  -- Configuration --                        |
+|  Base Template: [optional dropdown]         |
+|  Harness: [claude v]                        |
+|  Model: [________________]                  |
+|  Image: [________________]                  |
+|                                             |
+|  -- Limits --                               |
+|  Max Turns: [____]  Max Duration: [___]     |
+|                                             |
+|  -- Environment --                          |
+|  [KEY] = [VALUE]        [+ Add]             |
+|                                             |
+|  -- System Prompt --                        |
+|  [multiline editor........................  |
+|  .........................................  |
+|                                             |
+|  -- Task --                                 |
+|  [multiline editor........................  |
+|  .........................................  |
+|                                             |
+|  [Advanced: Resources, Telemetry, ...]      |
+|                                             |
+|  [Create Agent]                             |
++---------------------------------------------+
 ```
 
-The form serializes to a `JITAgentConfig` JSON object and sends it as `jitConfig` in the create request. No template creation needed.
+The form serializes to a `ScionConfig` JSON object and sends it as `config` in the create request. No template creation needed.
 
 ---
 
 ## 4. Implementation Approach
 
-### Phase 1: CLI `--config` Flag (Local/Solo Mode)
+### Phase 1: Expand ScionConfig and Add CLI `--config` Flag
 
-**Scope:** Add `--config <path>` to `scion start` and `scion create`. Parse the file into `JITAgentConfig`, convert to `ScionConfig`, and inject into the existing provisioning flow.
+**Scope:** Add the new fields to `ScionConfig`, implement content resolution for inline values, and add `--config <path>` to `scion start` and `scion create`.
 
 **Changes:**
-- `pkg/api/types.go` — Add `JITAgentConfig` struct and conversion methods
-- `cmd/start.go` / `cmd/common.go` — Add `--config` flag, load file, convert
-- `pkg/agent/provision.go` — Accept optional `JITAgentConfig` in provisioning; when present, use it as the template-equivalent layer
-- `pkg/agent/provision.go` — Handle inline `system_prompt` and `agent_instructions` by writing them to the agent home directory (same as template content resolution, but from inline strings)
+- `pkg/api/types.go` — Add `user`, `auth_selected_type`, `task`, `branch` fields to `ScionConfig`. Annotate `task` and `branch` with `json:"-"` to exclude from persisted config.
+- `pkg/agent/provision.go` — Extend content resolution to support inline `system_prompt` and `agent_instructions` values (detect inline content vs. file references). When `user` or `auth_selected_type` is set on `ScionConfig`, apply these during harness-config resolution.
+- `cmd/start.go` / `cmd/common.go` — Add `--config` flag, load file, parse as `ScionConfig`, merge into the provisioning flow.
 
-**Key detail:** When `--config` is provided without `--type`, the provisioning path skips template loading and uses the JIT config as the base. The harness-config `home/` directory is still applied (based on the `harness_config` field in JIT config or the harness default).
+**Key detail:** When `--config` is provided without `--type`, the provisioning path skips template loading and uses the inline config as the base. The harness-config `home/` directory is still applied (based on the `harness_config` field or the harness default).
 
 **Validation:**
 - If neither `--type` nor `--config` is provided, existing behavior (default template)
 - If `--config` is provided, `harness` must be specified either in the config or via a base template
 - If both `--type` and `--config`, merge config over template
 
-### Phase 2: Hub API Support
+### Phase 2: Hub API Support (Replace AgentConfigOverride)
 
-**Scope:** Extend Hub create-agent API to accept `jitConfig`. The Hub resolves the JIT config and passes relevant fields to the broker.
+**Scope:** Extend Hub create-agent API to accept a full `ScionConfig`. Deprecate `AgentConfigOverride`.
 
 **Changes:**
-- `pkg/hub/handlers.go` — Accept `jitConfig` in `CreateAgentRequest`; merge with template if both provided; pass through to dispatcher
-- `pkg/hub/httpdispatcher.go` — Include JIT config fields in `RemoteCreateAgentRequest`
-- `pkg/runtimebroker/handlers.go` — Accept and apply JIT config fields during agent provisioning
-- `pkg/runtimebroker/types.go` — Extend `CreateAgentConfig` with JIT config fields
+- `pkg/hub/handlers.go` — Accept `config` (`*ScionConfig`) in `CreateAgentRequest`; merge with template if both provided; pass through to dispatcher. Deprecate the existing `AgentConfigOverride` field with a compatibility shim that converts it to a partial `ScionConfig`.
+- `pkg/hub/httpdispatcher.go` — Include `ScionConfig` fields in `RemoteCreateAgentRequest`
+- `pkg/runtimebroker/handlers.go` — Accept and apply the full `ScionConfig` during agent provisioning
+- `pkg/runtimebroker/types.go` — Replace per-field overrides in `CreateAgentConfig` with a `ScionConfig` field
 
-**Design decision:** The Hub can either:
-- (A) Pass the entire `JITAgentConfig` to the broker, letting the broker do all resolution
-- (B) Resolve the JIT config into the existing `RemoteAgentConfig` fields, keeping the broker interface stable
-
-Option (B) is preferred — it keeps the broker interface unchanged and centralizes JIT-to-standard conversion in the Hub. The broker doesn't need to know whether config came from a template or JIT.
+**Design decision:** The Hub resolves the `ScionConfig` into the existing `RemoteAgentConfig` fields, keeping the broker interface stable. The broker doesn't need to know whether config came from a template or inline. Option (B) from the original design — centralize conversion in the Hub.
 
 ### Phase 3: Web UI Form
 
-**Scope:** Add agent creation form to the Hub web UI that generates `JITAgentConfig`.
+**Scope:** Add agent creation form to the Hub web UI that generates a `ScionConfig`.
 
 **Changes:**
 - `web/src/client/` — Agent creation form component
@@ -296,10 +334,10 @@ This phase is purely frontend work once Phase 2 is complete.
 
 ### Phase 4: Config Export and Sharing
 
-**Scope:** Allow exporting an existing agent's resolved config as a JIT config file, enabling config sharing and reproduction.
+**Scope:** Allow exporting an existing agent's resolved config as a `ScionConfig` file, enabling config sharing and reproduction.
 
 ```bash
-# Export current agent config as a reusable JIT config file
+# Export current agent config as a reusable config file
 scion config export my-agent > agent-config.yaml
 
 # Start a new agent with the same config
@@ -308,26 +346,28 @@ scion start new-agent --config agent-config.yaml
 
 **Changes:**
 - `cmd/config.go` — Add `config export` subcommand
-- `pkg/agent/` — Read agent's `scion-agent.json` + content files, produce `JITAgentConfig`
+- `pkg/agent/` — Read agent's `scion-agent.json` + content files, produce a complete `ScionConfig`
 
 ---
 
 ## 5. Alternative Approaches Considered
 
-### A: Extend `ScionConfig` Directly (Flatten Everything)
+### A: Separate JITAgentConfig Type (Original Draft Approach)
 
-Instead of a separate `JITAgentConfig` type, add the missing fields (`user`, inline content) directly to `ScionConfig`.
+Introduce a new `JITAgentConfig` type that is a superset of `ScionConfig`, with conversion methods (`ToScionConfig()`, `ToHarnessConfigEntry()`).
 
 **Pros:**
-- Single type, no conversion logic
-- `scion-agent.yaml` files in templates immediately gain inline content support
+- Clean separation between user input format and resolved config
+- No risk of bloating `scion-agent.json` with input-only fields
+- Clear boundary: `ScionConfig` is the resolved config, `JITAgentConfig` is the input
 
 **Cons:**
-- `ScionConfig` is serialized to `scion-agent.json` in every agent directory — adding `user` and large inline content bloats this file
-- Conceptual muddling: `ScionConfig` is the agent's resolved config, not a user-facing input format
-- Some JIT fields (like `task`, `branch`) are operational parameters, not configuration
+- Two types that must stay in sync — every new field requires updates in both places
+- Conversion logic adds complexity and is a source of bugs
+- The Hub, CLI, and broker all need to understand both types
+- `AgentConfigOverride` would still exist as a third type, or need its own migration
 
-**Verdict:** Rejected as primary approach, but the `system_prompt` and `agent_instructions` fields already exist on `ScionConfig` and can accept inline content in Phase 1 by extending the content resolution logic (check if value is a filename, fall back to treating it as inline content).
+**Verdict:** Rejected. The maintenance cost of two parallel config types outweighs the conceptual cleanliness. Selective serialization (`json:"-"` tags, separate marshal methods) handles the input-vs-persisted distinction within a single type.
 
 ### B: Templates-as-JSON via API (Ephemeral Templates)
 
@@ -340,7 +380,7 @@ Instead of a new config format, the Hub could create ephemeral/anonymous templat
 **Cons:**
 - Creates invisible template artifacts that need lifecycle management
 - Ephemeral templates need garbage collection
-- Adds latency (create template → start agent, two-step)
+- Adds latency (create template -> start agent, two-step)
 - Doesn't solve the CLI use case
 
 **Verdict:** Rejected. Adds complexity without solving the core problem.
@@ -361,7 +401,7 @@ Continue adding CLI flags for each new option (`--model`, `--max-turns`, `--syst
 
 **Verdict:** Rejected as a strategy. Individual high-use flags (`--model`) may still be added for convenience alongside `--config`.
 
-### D: JIT Config as Complete Override (No Template Merge)
+### D: Inline Config as Complete Override (No Template Merge)
 
 When `--config` is provided, completely ignore templates — no merge, no composition.
 
@@ -380,9 +420,9 @@ When `--config` is provided, completely ignore templates — no merge, no compos
 
 ## 6. Open Questions
 
-### Q1: Should JIT config support inline home directory files?
+### Q1: Should inline config support inline home directory files?
 
-Today, harness-config `home/` directories provide files like `.claude.json` and `.bashrc`. Should JIT config support declaring these inline?
+Today, harness-config `home/` directories provide files like `.claude.json` and `.bashrc`. Should inline config support declaring these inline?
 
 ```yaml
 home_files:
@@ -394,64 +434,76 @@ home_files:
 
 **Considerations:**
 - Powerful but complex — files can be binary (images, compiled configs)
-- Significantly increases the JIT config surface area
+- Significantly increases the config surface area
+- Home directory files are the trickiest part of the config to capture inline, since they are filesystem artifacts rather than structured configuration
 - Alternative: reference a harness-config by name for `home/` files, only override config values inline
 
-**Recommendation:** Defer to a later phase. For Phase 1, the `harness_config` field in JIT config can reference an existing harness-config for `home/` files. Inline file support can be added later if needed.
+**Recommendation:** Defer to a later phase. For Phase 1, the `harness_config` field can reference an existing harness-config for `home/` files. Inline file support can be added later if there is demonstrated demand for it.
 
-### Q2: Type placement — `pkg/api` or new package?
+### Q2: How should content field resolution distinguish filenames from inline content?
 
-`JITAgentConfig` could live in:
-- `pkg/api/types.go` alongside `ScionConfig` (simple, everything in one place)
-- A new `pkg/api/jitconfig.go` file (still `api` package, just organized)
-- `pkg/config/` (closer to the template/settings resolution logic)
+The `system_prompt` and `agent_instructions` fields need to support both file references (`system_prompt: system-prompt.md`) and inline content (`system_prompt: "You are a code reviewer."`). The resolution heuristic matters.
 
-**Recommendation:** `pkg/api/jitconfig.go` — same package as `ScionConfig` for easy conversion, separate file for clarity.
+**Options:**
+- **Newline detection:** If the value contains `\n`, it's inline content; otherwise try as a filename first. Simple but could misclassify single-line inline content if a file with that name exists.
+- **Explicit prefix/suffix:** Use a convention like `file:system-prompt.md` for file references, bare strings for inline. Breaking change for existing templates.
+- **Separate fields:** `system_prompt` for filenames, `system_prompt_content` for inline. Avoids ambiguity but adds field proliferation.
+- **Try file first, fall back to inline:** Attempt to read the value as a file path relative to the template directory. If no template directory or file doesn't exist, treat as inline content.
+
+**Recommendation:** "Try file first, fall back to inline." When a template directory exists, attempt file resolution; if the file is not found (or no template directory), treat the value as inline content. This is fully backwards compatible and handles the common cases naturally. Edge case: a user provides inline content that happens to match a filename in the template directory. This is unlikely in practice and can be documented.
 
 ### Q3: How should `--config` interact with `--type` for content fields?
 
-If a template has `agents.md` and the JIT config also has `agent_instructions`, the JIT config wins (standard merge). But what about partial specification?
+If a template has `agents.md` and the inline config also has `agent_instructions`, the inline config wins (standard merge). But what about partial specification?
 
 ```yaml
-# JIT config sets system_prompt but not agent_instructions
+# Inline config sets system_prompt but not agent_instructions
 system_prompt: "You are a careful code reviewer."
 # Should agent_instructions come from the base template?
 ```
 
-**Recommendation:** Yes — standard merge semantics. JIT config fields override template fields when set, template fields are preserved when the JIT config field is empty. This matches existing `MergeScionConfig` behavior.
+**Recommendation:** Yes — standard merge semantics. Inline config fields override template fields when set; template fields are preserved when the inline config field is empty. This matches existing `MergeScionConfig` behavior.
 
-### Q4: Should the JIT config schema version independently?
+### Q4: Should the config schema version independently?
 
-Templates have `schema_version: "1"`. Should JIT config have its own version?
+Templates have `schema_version: "1"`. The expanded `ScionConfig` used with `--config` should also have a schema version.
 
-**Recommendation:** Yes, include a `schema_version` field. Start at `"1"`. This allows the JIT config format to evolve independently of the template format, though they'll likely stay in sync.
+**Recommendation:** Use the same `schema_version` field that already exists on `ScionConfig`. Since we're expanding `ScionConfig` rather than creating a new type, the version tracks the same schema. Start at `"1"` (or the current version). Inline configs and template configs evolve together.
 
 ### Q5: Validation strictness
 
-Should JIT config be validated more strictly than template config? For example:
+Should inline config be validated more strictly than template config? For example:
 - Require `harness` to be set (templates can inherit it)
 - Require `image` to be set (harness-configs provide defaults)
 
 **Recommendation:** When used standalone (no `--type`), require `harness`. Other fields fall back to harness-config or embedded defaults, same as templates today. The point is to be explicit, not necessarily exhaustive.
 
-### Q6: Should CLI `--config` support URL references?
+### Q6: How should `task` and `branch` persist (or not)?
 
-```bash
-scion start my-agent --config https://example.com/configs/reviewer.yaml
-```
+These fields are operational parameters — they're consumed at agent creation time but are not part of the agent's durable configuration. Options:
 
-**Considerations:**
-- Templates already support remote URIs (GitHub, archives)
-- Security: downloading arbitrary YAML from the internet
-- Convenience for shared team configs
+- **`json:"-"` tag:** Exclude from `scion-agent.json` serialization entirely. Simple but means exported configs lose this information.
+- **Separate serialization:** Use a custom `MarshalJSON` that excludes input-only fields. More control but adds complexity.
+- **Just include them:** Let `task` and `branch` persist in `scion-agent.json`. They're small strings and having them in the persisted config aids debugging and config export (Phase 4).
 
-**Recommendation:** Defer. File path and stdin are sufficient for Phase 1. URL support can be added alongside template URI support patterns.
+**Recommendation:** Include them in `scion-agent.json`. The storage cost is negligible, and having the original task and branch in the persisted config is useful for auditability and config export.
 
-### Q7: How does JIT config interact with the env-gather flow?
+### Q7: Deprecation path for AgentConfigOverride and hubclient.AgentConfig
 
-The env-gather flow (`GatherEnv: true`) evaluates whether required environment variables are present and prompts the user to supply missing ones. JIT config might declare `secrets` that trigger this flow.
+Once `ScionConfig` is threaded through the Hub API, `AgentConfigOverride` and the ad-hoc fields on `hubclient.AgentConfig` become redundant.
 
-**Recommendation:** JIT config's `secrets` field feeds into the same env-gather pipeline. No special handling needed — the broker evaluates completeness the same way regardless of config source.
+**Options:**
+- **Immediate removal:** Clean but may break existing Hub API clients.
+- **Compatibility shim:** Accept both old-style overrides and new-style `ScionConfig`. If both are present, convert old-style to a partial `ScionConfig` and merge (new-style takes precedence). Deprecation warning in logs.
+- **Parallel support:** Keep both indefinitely, document that `config` takes precedence.
+
+**Recommendation:** Compatibility shim in Phase 2. The Hub handler converts any `AgentConfigOverride` into a partial `ScionConfig` internally, so the rest of the pipeline only deals with `ScionConfig`. Mark `AgentConfigOverride` as deprecated in the API docs. Remove in a subsequent release.
+
+### Q8: How does inline config interact with the env-gather flow?
+
+The env-gather flow (`GatherEnv: true`) evaluates whether required environment variables are present and prompts the user to supply missing ones. Inline config might declare `secrets` that trigger this flow.
+
+**Recommendation:** The `secrets` field feeds into the same env-gather pipeline. No special handling needed — the broker evaluates completeness the same way regardless of config source.
 
 ---
 
@@ -460,26 +512,19 @@ The env-gather flow (`GatherEnv: true`) evaluates whether required environment v
 ### No Breaking Changes
 
 - Existing `scion start --type <template>` continues to work identically
-- Existing Hub API `CreateAgentRequest` without `jitConfig` is unchanged
-- Existing `scion-agent.yaml` template format is unchanged
-- `AgentConfigOverride` in Hub continues to work but becomes a subset of JIT config
+- Existing Hub API `CreateAgentRequest` without `config` is unchanged
+- Existing `scion-agent.yaml` template format is unchanged and gains inline content support for free
+- `AgentConfigOverride` continues to work via compatibility shim (deprecated)
 
-### Deprecation Path for `AgentConfigOverride`
+### Migration Path
 
-Once JIT config is available on the Hub API, `AgentConfigOverride` (`config` field in Hub's `CreateAgentRequest`) becomes redundant — it's a strict subset of `jitConfig`. It can be:
-1. Kept for backwards compatibility (simple overrides don't need the full JIT schema)
-2. Deprecated in favor of `jitConfig` with a compatibility shim
-3. Internally converted to a partial `JITAgentConfig`
-
-**Recommendation:** Keep both for now. `config` (overrides) is for simple cases, `jitConfig` is for complete specifications. Document that `jitConfig` takes precedence if both are set.
-
-### Similarly for `hubclient.AgentConfig`
-
-The client-side `AgentConfig` struct (`Image`, `HarnessConfig`, `HarnessAuth`, `Env`, `Model`, `Task`) is also a subset. Same approach: keep both, document precedence.
+1. **Phase 1:** `ScionConfig` gains new fields. `--config` flag added to CLI. No API changes.
+2. **Phase 2:** Hub API gains `config` field. `AgentConfigOverride` deprecated with compatibility shim. `hubclient.AgentConfig` ad-hoc fields deprecated.
+3. **Future:** Remove `AgentConfigOverride` and `hubclient.AgentConfig` ad-hoc fields once all clients have migrated to sending a full `ScionConfig`.
 
 ---
 
-## 8. Example JIT Config Files
+## 8. Example Config Files
 
 ### Minimal: Just override model and add telemetry
 
