@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-Scion's container images are currently published to a project-specific GCP Artifact Registry (`us-central1-docker.pkg.dev/ptone-misc/public-docker/`). This registry path is hardcoded into every harness-config's `config.yaml` and the `hack/` build scripts. New users who want to run Scion must either:
+Scion's container images are currently published to a project-specific GCP Artifact Registry (`us-central1-docker.pkg.dev/ptone-misc/public-docker/`). This registry path is hardcoded into every harness-config's `config.yaml` and the `image-build/` build scripts. New users who want to run Scion must either:
 
 1. Use the pre-built images from the upstream registry (which may not always be public or up-to-date), or
 2. Manually edit multiple harness-config files and build scripts to point to their own registry.
@@ -28,8 +28,8 @@ core-base  (Go, Git, Node, Python, gcloud — rarely changes)
 |----------|---------|-------|
 | `pkg/harness/claude/embeds/config.yaml` | `image: us-central1-docker.pkg.dev/ptone-misc/public-docker/scion-claude:latest` | 4 files (one per harness) |
 | `image-build/cloudbuild*.yaml` | `$_REGISTRY` substitution variable | 5 files |
-| `hack/trigger-cloudbuild.sh` | `PROJECT=ptone-misc` | 1 file |
-| `hack/pull-containers.sh` | Hardcoded image list | 1 file |
+| `image-build/scripts/trigger-cloudbuild.sh` | `PROJECT=ptone-misc` | 1 file (currently `hack/trigger-cloudbuild.sh`) |
+| `image-build/scripts/pull-containers.sh` | Hardcoded image list | 1 file (currently `hack/pull-containers.sh`) |
 
 ### Image Resolution at Runtime
 The image used for an agent is resolved through a precedence chain:
@@ -97,12 +97,14 @@ profiles:
 
 Profile-level `image_registry` takes precedence over the top-level setting.
 
-### 2. Build Script: `hack/build-images.sh`
+### 2. Build Script: `image-build/scripts/build-images.sh`
+
+All image-related scripts live under `image-build/scripts/`, consolidating everything image-related in the `image-build/` directory. The exception is GitHub Actions workflows, which remain in `.github/workflows/` per GitHub convention (documented in the `image-build/README.md`).
 
 A unified build script that works for local Docker builds and can be adapted for CI:
 
 ```
-hack/build-images.sh --registry <registry-path> [--target common|all|core-base|harnesses] [--push]
+image-build/scripts/build-images.sh --registry <registry-path> [--target common|all|core-base|harnesses] [--push]
 ```
 
 **Behavior:**
@@ -127,12 +129,12 @@ Or add to your ~/.scion/settings.yaml:
 
 Retain the existing `image-build/cloudbuild*.yaml` files, but make them parameterizable for any GCP project:
 
-**Changes to `hack/trigger-cloudbuild.sh`:**
+**Changes to `image-build/scripts/trigger-cloudbuild.sh`** (moved from `hack/`)**:**
 - Accept `--project` and `--registry` flags instead of hardcoding `ptone-misc`.
 - Default to `$GCLOUD_PROJECT` or `$(gcloud config get-value project)` if not specified.
 - Default registry to `us-central1-docker.pkg.dev/${PROJECT}/scion` (a conventional repo name).
 
-**New: `hack/setup-cloud-build.sh`:**
+**New: `image-build/scripts/setup-cloud-build.sh`:**
 A one-time setup script that:
 1. Creates the Artifact Registry repository if it doesn't exist.
 2. Grants Cloud Build the necessary permissions.
@@ -170,7 +172,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - name: Build and push images
         run: |
-          hack/build-images.sh \
+          image-build/scripts/build-images.sh \
             --registry "${{ inputs.registry }}" \
             --target "${{ inputs.target }}" \
             --platform all \
@@ -221,15 +223,18 @@ This writes to `~/.scion/settings.yaml` (global) or `.scion/settings.yaml` (grov
 
 ### Phase 2: Build Scripts
 
-6. **Create `hack/build-images.sh`.**
+6. **Create `image-build/scripts/build-images.sh`.**
    - Unified local build script using `docker buildx`.
    - Parameterized by `--registry`, `--target`, `--push`, `--platform`, `--tag`.
 
-7. **Update `hack/trigger-cloudbuild.sh`.**
+7. **Move and update `hack/trigger-cloudbuild.sh` → `image-build/scripts/trigger-cloudbuild.sh`.**
    - Accept `--project` and `--registry` flags.
    - Default to environment/gcloud for project.
 
-8. **Create `hack/setup-cloud-build.sh`.**
+7b. **Move `hack/pull-containers.sh` → `image-build/scripts/pull-containers.sh`.**
+   - Consolidates all image-related scripts in one place.
+
+8. **Create `image-build/scripts/setup-cloud-build.sh`.**
    - One-time GCP Artifact Registry setup.
 
 ### Phase 3: GitHub Actions
