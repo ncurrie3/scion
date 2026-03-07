@@ -70,6 +70,7 @@ func newTestServerWithGrovePath(t *testing.T, settingsYAML string) (*Server, *en
 	cfg.BrokerID = "test-broker-id"
 	cfg.BrokerName = "test-host"
 	cfg.Debug = true
+	cfg.StateDir = t.TempDir()
 
 	mgr := &envCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -287,7 +288,7 @@ profiles:
 
 	// Phase 2: Submit gathered env via finalize-env
 	finalizeBody := `{"env": {"NEEDED_KEY": "gathered-value"}}`
-	finalizeReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents/test-agent-finalize/finalize-env", strings.NewReader(finalizeBody))
+	finalizeReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents/agent-uuid-fin/finalize-env", strings.NewReader(finalizeBody))
 	finalizeReq.Header.Set("Content-Type", "application/json")
 	finalizeW := httptest.NewRecorder()
 
@@ -309,6 +310,167 @@ profiles:
 	// without this, container image resolution fails with "no container image resolved")
 	if mgr.lastTemplateName != "claude" {
 		t.Errorf("expected TemplateName='claude', got %q", mgr.lastTemplateName)
+	}
+}
+
+func TestEnvGather_FinalizeEnv_RetryOnStartFailure(t *testing.T) {
+	settings := `
+schema_version: "1"
+harness_configs:
+  claude:
+    harness: claude
+    env:
+      NEEDED_KEY: ""
+profiles:
+  default:
+    runtime: mock
+`
+	srv, mgr, groveDir := newTestServerWithGrovePath(t, settings)
+	mgr.startErr = os.ErrPermission
+
+	createBody := `{
+		"name": "test-agent-retry",
+		"id": "agent-uuid-retry",
+		"gatherEnv": true,
+		"grovePath": "` + groveDir + `",
+		"config": {"template": "claude", "profile": "default"}
+	}`
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents", strings.NewReader(createBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createW := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(createW, createReq)
+	if createW.Code != http.StatusAccepted {
+		t.Fatalf("phase 1: expected 202, got %d: %s", createW.Code, createW.Body.String())
+	}
+
+	finalizeBody := `{"env": {"NEEDED_KEY": "gathered-value"}}`
+	finalizeReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents/agent-uuid-retry/finalize-env", strings.NewReader(finalizeBody))
+	finalizeReq.Header.Set("Content-Type", "application/json")
+	finalizeW := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(finalizeW, finalizeReq)
+	if finalizeW.Code != http.StatusInternalServerError {
+		t.Fatalf("first finalize: expected 500, got %d: %s", finalizeW.Code, finalizeW.Body.String())
+	}
+
+	mgr.startErr = nil
+	retryReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents/agent-uuid-retry/finalize-env", strings.NewReader(finalizeBody))
+	retryReq.Header.Set("Content-Type", "application/json")
+	retryW := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(retryW, retryReq)
+	if retryW.Code != http.StatusCreated {
+		t.Fatalf("retry finalize: expected 201, got %d: %s", retryW.Code, retryW.Body.String())
+	}
+}
+
+func TestEnvGather_FinalizeEnv_SurvivesBrokerRestart(t *testing.T) {
+	settings := `
+schema_version: "1"
+harness_configs:
+  claude:
+    harness: claude
+    env:
+      NEEDED_KEY: ""
+profiles:
+  default:
+    runtime: mock
+`
+	groveDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(groveDir, "settings.yaml"), []byte(settings), 0644); err != nil {
+		t.Fatal(err)
+	}
+	for _, tpl := range []string{"claude", "default"} {
+		tplDir := filepath.Join(groveDir, "templates", tpl)
+		if err := os.MkdirAll(tplDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(tplDir, "scion-agent.yaml"), []byte("harness_config: claude\n"), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	hcDir := filepath.Join(groveDir, "harness-configs", "claude")
+	if err := os.MkdirAll(hcDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(hcDir, "config.yaml"), []byte("harness: claude\nimage: test-image:claude\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	stateDir := t.TempDir()
+	cfg := DefaultServerConfig()
+	cfg.BrokerID = "test-broker-id"
+	cfg.BrokerName = "test-host"
+	cfg.Debug = true
+	cfg.StateDir = stateDir
+
+	createMgr := &envCapturingManager{}
+	srv1 := New(cfg, createMgr, &runtime.MockRuntime{})
+
+	createBody := `{
+		"name": "test-agent-restart",
+		"id": "agent-uuid-restart",
+		"gatherEnv": true,
+		"grovePath": "` + groveDir + `",
+		"config": {"template": "claude", "profile": "default"}
+	}`
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents", strings.NewReader(createBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createW := httptest.NewRecorder()
+	srv1.Handler().ServeHTTP(createW, createReq)
+	if createW.Code != http.StatusAccepted {
+		t.Fatalf("phase 1: expected 202, got %d: %s", createW.Code, createW.Body.String())
+	}
+
+	finalizeMgr := &envCapturingManager{}
+	srv2 := New(cfg, finalizeMgr, &runtime.MockRuntime{})
+
+	finalizeBody := `{"env": {"NEEDED_KEY": "gathered-value"}}`
+	finalizeReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents/agent-uuid-restart/finalize-env", strings.NewReader(finalizeBody))
+	finalizeReq.Header.Set("Content-Type", "application/json")
+	finalizeW := httptest.NewRecorder()
+	srv2.Handler().ServeHTTP(finalizeW, finalizeReq)
+	if finalizeW.Code != http.StatusCreated {
+		t.Fatalf("phase 2: expected 201, got %d: %s", finalizeW.Code, finalizeW.Body.String())
+	}
+	if finalizeMgr.lastEnv["NEEDED_KEY"] != "gathered-value" {
+		t.Fatalf("expected gathered value to survive restart, got %q", finalizeMgr.lastEnv["NEEDED_KEY"])
+	}
+}
+
+func TestCreateAgent_IdempotentByRequestID(t *testing.T) {
+	cfg := DefaultServerConfig()
+	cfg.BrokerID = "test-broker-id"
+	cfg.BrokerName = "test-host"
+	cfg.Debug = true
+	cfg.StateDir = t.TempDir()
+	mgr := &envCapturingManager{}
+	srv := New(cfg, mgr, &runtime.MockRuntime{})
+
+	body := `{
+		"requestId": "req-idempotent-1",
+		"name": "test-agent-idem",
+		"id": "agent-uuid-idem",
+		"config": {"template": "claude"}
+	}`
+	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/agents", strings.NewReader(body))
+	req1.Header.Set("Content-Type", "application/json")
+	w1 := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w1, req1)
+	if w1.Code != http.StatusCreated {
+		t.Fatalf("first create: expected 201, got %d: %s", w1.Code, w1.Body.String())
+	}
+	if mgr.startCalls != 1 {
+		t.Fatalf("first create: expected startCalls=1, got %d", mgr.startCalls)
+	}
+
+	req2 := httptest.NewRequest(http.MethodPost, "/api/v1/agents", strings.NewReader(body))
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(w2, req2)
+	if w2.Code != http.StatusCreated {
+		t.Fatalf("second create: expected 201 replay, got %d: %s", w2.Code, w2.Body.String())
+	}
+	if mgr.startCalls != 1 {
+		t.Fatalf("second create should replay without starting again, startCalls=%d", mgr.startCalls)
 	}
 }
 
@@ -339,6 +501,7 @@ func newTestServerWithHarnessConfig(t *testing.T, harnessConfigName, configYAML,
 	cfg.BrokerID = "test-broker-id"
 	cfg.BrokerName = "test-host"
 	cfg.Debug = true
+	cfg.StateDir = t.TempDir()
 
 	mgr := &envCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -1221,7 +1384,7 @@ profiles:
 
 	// Phase 2: Submit gathered env via finalize-env
 	finalizeBody := `{"env": {"NEEDED_KEY": "gathered-value"}}`
-	finalizeReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents/test-agent-empty-tpl/finalize-env", strings.NewReader(finalizeBody))
+	finalizeReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents/agent-uuid-empty-tpl/finalize-env", strings.NewReader(finalizeBody))
 	finalizeReq.Header.Set("Content-Type", "application/json")
 	finalizeW := httptest.NewRecorder()
 
@@ -1330,7 +1493,7 @@ profiles:
 
 	// Phase 2: Submit gathered env via finalize-env
 	finalizeBody := `{"env": {"NEEDED_KEY": "gathered-value"}}`
-	finalizeReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents/test-agent-hc-preserve/finalize-env", strings.NewReader(finalizeBody))
+	finalizeReq := httptest.NewRequest(http.MethodPost, "/api/v1/agents/agent-uuid-hcp/finalize-env", strings.NewReader(finalizeBody))
 	finalizeReq.Header.Set("Content-Type", "application/json")
 	finalizeW := httptest.NewRecorder()
 

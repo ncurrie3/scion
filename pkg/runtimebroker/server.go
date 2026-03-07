@@ -35,8 +35,8 @@ import (
 	"github.com/ptone/scion-agent/pkg/config"
 	"github.com/ptone/scion-agent/pkg/hubclient"
 	"github.com/ptone/scion-agent/pkg/runtime"
-	"github.com/ptone/scion-agent/pkg/util"
 	"github.com/ptone/scion-agent/pkg/templatecache"
+	"github.com/ptone/scion-agent/pkg/util"
 	"github.com/ptone/scion-agent/pkg/util/logging"
 )
 
@@ -125,6 +125,10 @@ type ServerConfig struct {
 	// WorktreeBase is the base directory for agent worktrees.
 	// Used as a fallback when resolving workspace paths.
 	WorktreeBase string
+
+	// StateDir is the directory for broker runtime state (pending env-gather,
+	// dispatch attempts). Defaults to ~/.scion/runtime-broker-state/<broker-id>.
+	StateDir string
 }
 
 // DefaultServerConfig returns the default server configuration.
@@ -169,9 +173,16 @@ type Server struct {
 	credWatcherStop chan struct{}
 
 	// Pending env-gather state: agents waiting for env var submission.
-	// Keyed by agent name (used as agent identifier on the broker).
+	// Keyed by immutable agent ID.
 	pendingEnvGather   map[string]*pendingAgentState
 	pendingEnvGatherMu sync.Mutex
+
+	// dispatchAttempts tracks request-id based create-attempt state for
+	// idempotency and auditability.
+	dispatchAttempts   map[string]*dispatchAttempt
+	dispatchAttemptsMu sync.Mutex
+
+	stateDir string
 
 	// Subsystem loggers for handler methods
 	agentLifecycleLog *slog.Logger
@@ -181,9 +192,28 @@ type Server struct {
 
 // pendingAgentState holds the partial state for an agent waiting on env-gather.
 type pendingAgentState struct {
-	Request   *CreateAgentRequest
-	MergedEnv map[string]string
-	CreatedAt time.Time
+	AgentID      string
+	Request      *CreateAgentRequest
+	MergedEnv    map[string]string
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+	State        string
+	RequestID    string
+	FinalizeRuns int
+}
+
+type dispatchAttempt struct {
+	RequestID  string
+	Operation  string
+	AgentID    string
+	Status     string
+	HTTPStatus int
+	Error      string
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+
+	CreatedResponse *CreateAgentResponse
+	EnvResponse     *EnvRequirementsResponse
 }
 
 // New creates a new Runtime Broker API server.
@@ -196,19 +226,39 @@ func New(cfg ServerConfig, mgr agent.Manager, rt runtime.Runtime) *Server {
 	}
 
 	srv := &Server{
-		config:         cfg,
-		manager:        mgr,
-		runtime:        rt,
-		mux:            http.NewServeMux(),
-		startTime:      time.Now(),
-		version:        "0.1.0", // TODO: Get from build info
-		hubConnections: make(map[string]*HubConnection),
+		config:           cfg,
+		manager:          mgr,
+		runtime:          rt,
+		mux:              http.NewServeMux(),
+		startTime:        time.Now(),
+		version:          "0.1.0", // TODO: Get from build info
+		hubConnections:   make(map[string]*HubConnection),
 		pendingEnvGather: make(map[string]*pendingAgentState),
+		dispatchAttempts: make(map[string]*dispatchAttempt),
 
 		// Subsystem loggers
 		agentLifecycleLog: logging.Subsystem("broker.agent-lifecycle"),
 		messageLog:        logging.Subsystem("broker.messages"),
 		envSecretLog:      logging.Subsystem("broker.env-secrets"),
+	}
+
+	srv.stateDir = cfg.StateDir
+	if srv.stateDir == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			slog.Warn("Failed to resolve user home directory for state dir", "error", err)
+		} else {
+			brokerDir := cfg.BrokerID
+			if brokerDir == "" {
+				brokerDir = "default"
+			}
+			srv.stateDir = filepath.Join(homeDir, ".scion", "runtime-broker-state", brokerDir)
+		}
+	}
+	if srv.stateDir != "" {
+		if err := srv.initStateStore(); err != nil {
+			slog.Warn("Failed to initialize runtime broker state store", "error", err, "stateDir", srv.stateDir)
+		}
 	}
 
 	// Initialize Hub integration if enabled

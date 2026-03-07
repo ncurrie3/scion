@@ -241,6 +241,62 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	agentKey := req.ID
+	if agentKey == "" {
+		agentKey = req.Name
+	}
+
+	var attempt *dispatchAttempt
+	if req.RequestID != "" {
+		s.dispatchAttemptsMu.Lock()
+		newAttempt, existingAttempt := s.beginCreateAttempt(req.RequestID, agentKey)
+		if existingAttempt != nil {
+			switch existingAttempt.Status {
+			case dispatchAttemptSucceeded:
+				if existingAttempt.CreatedResponse != nil {
+					status := existingAttempt.HTTPStatus
+					if status == 0 {
+						status = http.StatusCreated
+					}
+					respCopy := *existingAttempt.CreatedResponse
+					s.dispatchAttemptsMu.Unlock()
+					writeJSON(w, status, respCopy)
+					return
+				}
+				if existingAttempt.EnvResponse != nil {
+					respCopy := *existingAttempt.EnvResponse
+					s.dispatchAttemptsMu.Unlock()
+					writeJSON(w, http.StatusAccepted, respCopy)
+					return
+				}
+			case dispatchAttemptInProgress:
+				s.dispatchAttemptsMu.Unlock()
+				writeError(w, http.StatusConflict, ErrCodeConflict, "create request already in progress", map[string]interface{}{
+					"requestId": req.RequestID,
+				})
+				return
+			case dispatchAttemptFailed:
+				existingAttempt.Status = dispatchAttemptInProgress
+				existingAttempt.Error = ""
+				existingAttempt.UpdatedAt = time.Now()
+				s.completeAttempt(existingAttempt, dispatchAttemptInProgress, 0, nil, nil, "")
+				attempt = existingAttempt
+			}
+		} else {
+			attempt = newAttempt
+		}
+		s.dispatchAttemptsMu.Unlock()
+	}
+
+	markAttemptFailed := func(httpStatus int, message string) {
+		if attempt == nil {
+			return
+		}
+		s.dispatchAttemptsMu.Lock()
+		s.completeAttempt(attempt, dispatchAttemptFailed, httpStatus, nil, nil, message)
+		s.dispatchAttemptsMu.Unlock()
+	}
+
 	// Debug log incoming request
 	if s.config.Debug {
 		s.agentLifecycleLog.Debug("Creating agent", "name", req.Name, "slug", req.Slug, "groveID", req.GroveID)
@@ -264,6 +320,7 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 	if req.GroveSlug != "" && req.GrovePath == "" {
 		globalDir, err := config.GetGlobalDir()
 		if err != nil {
+			markAttemptFailed(http.StatusInternalServerError, "failed to resolve global dir")
 			RuntimeError(w, "Failed to get global dir: "+err.Error())
 			return
 		}
@@ -472,11 +529,17 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 			if len(needs) > 0 {
 				// Store pending state for finalize-env
 				s.pendingEnvGatherMu.Lock()
-				s.pendingEnvGather[req.Name] = &pendingAgentState{
+				now := time.Now()
+				s.cleanupExpiredPendingLocked(now)
+				s.upsertPendingState(&pendingAgentState{
+					AgentID:   agentKey,
 					Request:   &req,
 					MergedEnv: env,
-					CreatedAt: time.Now(),
-				}
+					CreatedAt: now,
+					UpdatedAt: now,
+					State:     pendingStatePending,
+					RequestID: req.RequestID,
+				})
 				s.pendingEnvGatherMu.Unlock()
 
 				if s.config.Debug {
@@ -498,13 +561,19 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 					}
 				}
 
-				writeJSON(w, http.StatusAccepted, EnvRequirementsResponse{
-					AgentID:    req.ID,
+				resp := EnvRequirementsResponse{
+					AgentID:    agentKey,
 					Required:   required,
 					HubHas:     hubHas,
 					Needs:      needs,
 					SecretInfo: respSecretInfo,
-				})
+				}
+				if attempt != nil {
+					s.dispatchAttemptsMu.Lock()
+					s.completeAttempt(attempt, dispatchAttemptSucceeded, http.StatusAccepted, nil, &resp, "")
+					s.dispatchAttemptsMu.Unlock()
+				}
+				writeJSON(w, http.StatusAccepted, resp)
 				return
 			}
 
@@ -566,6 +635,7 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 	if hydrator != nil && req.Config != nil {
 		templatePath, err := s.hydrateTemplate(ctx, req.Config, hydrator)
 		if err != nil {
+			markAttemptFailed(http.StatusInternalServerError, "failed to hydrate template")
 			// Check if it's a Hub connectivity error
 			if templatecache.IsHubConnectivityError(err) {
 				HubUnreachableError(w, err.Error())
@@ -633,6 +703,7 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 		if req.GroveSlug != "" {
 			globalDir, err := config.GetGlobalDir()
 			if err != nil {
+				markAttemptFailed(http.StatusInternalServerError, "failed to resolve global dir")
 				RuntimeError(w, "Failed to get global dir: "+err.Error())
 				return
 			}
@@ -641,12 +712,14 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 			workspaceDir = filepath.Join(s.config.WorktreeBase, req.Name, "workspace")
 		}
 		if err := os.MkdirAll(workspaceDir, 0755); err != nil {
+			markAttemptFailed(http.StatusInternalServerError, "failed to create workspace directory")
 			RuntimeError(w, "Failed to create workspace directory: "+err.Error())
 			return
 		}
 
 		bucket := s.config.StorageBucket
 		if bucket == "" {
+			markAttemptFailed(http.StatusInternalServerError, "storage bucket not configured")
 			RuntimeError(w, "Storage bucket not configured for workspace bootstrap")
 			return
 		}
@@ -661,6 +734,7 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 		}
 
 		if err := gcp.SyncFromGCS(ctx, bucket, req.WorkspaceStoragePath+"/files", workspaceDir); err != nil {
+			markAttemptFailed(http.StatusInternalServerError, "failed to download workspace from GCS")
 			RuntimeError(w, "Failed to download workspace from GCS: "+err.Error())
 			return
 		}
@@ -676,6 +750,7 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 		// Provision only: set up dirs, worktree, templates without starting the container
 		cfg, err := mgr.Provision(ctx, opts)
 		if err != nil {
+			markAttemptFailed(http.StatusInternalServerError, "failed to provision agent")
 			RuntimeError(w, "Failed to provision agent: "+err.Error())
 			return
 		}
@@ -696,16 +771,23 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 			agentResp.RuntimeType = s.runtime.Name()
 		}
 
-		writeJSON(w, http.StatusCreated, CreateAgentResponse{
+		resp := CreateAgentResponse{
 			Agent:   agentResp,
 			Created: true,
-		})
+		}
+		if attempt != nil {
+			s.dispatchAttemptsMu.Lock()
+			s.completeAttempt(attempt, dispatchAttemptSucceeded, http.StatusCreated, &resp, nil, "")
+			s.dispatchAttemptsMu.Unlock()
+		}
+		writeJSON(w, http.StatusCreated, resp)
 		return
 	}
 
 	// Full start: provision and launch the container
 	agentInfo, err := mgr.Start(ctx, opts)
 	if err != nil {
+		markAttemptFailed(http.StatusInternalServerError, "failed to create agent")
 		RuntimeError(w, "Failed to create agent: "+err.Error())
 		return
 	}
@@ -720,6 +802,11 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 	resp := CreateAgentResponse{
 		Agent:   agentInfoPtr(AgentInfoToResponse(*agentInfo)),
 		Created: true,
+	}
+	if attempt != nil {
+		s.dispatchAttemptsMu.Lock()
+		s.completeAttempt(attempt, dispatchAttemptSucceeded, http.StatusCreated, &resp, nil, "")
+		s.dispatchAttemptsMu.Unlock()
 	}
 
 	writeJSON(w, http.StatusCreated, resp)
@@ -884,8 +971,8 @@ func (s *Server) startAgent(w http.ResponseWriter, r *http.Request, id string) {
 		GrovePath       string               `json:"grovePath"`
 		GroveSlug       string               `json:"groveSlug"`
 		HarnessConfig   string               `json:"harnessConfig"`
-		ResolvedEnv     map[string]string     `json:"resolvedEnv"`
-		ResolvedSecrets []api.ResolvedSecret  `json:"resolvedSecrets,omitempty"`
+		ResolvedEnv     map[string]string    `json:"resolvedEnv"`
+		ResolvedSecrets []api.ResolvedSecret `json:"resolvedSecrets,omitempty"`
 	}
 	if r.Body != nil && r.ContentLength != 0 {
 		if err := json.NewDecoder(r.Body).Decode(&startReq); err != nil {
@@ -1638,9 +1725,20 @@ func (s *Server) finalizeEnv(w http.ResponseWriter, r *http.Request, id string) 
 
 	// Look up pending state
 	s.pendingEnvGatherMu.Lock()
+	s.cleanupExpiredPendingLocked(time.Now())
 	pending, ok := s.pendingEnvGather[id]
+	if ok && pending.State == pendingStateFinalizing {
+		s.pendingEnvGatherMu.Unlock()
+		writeError(w, http.StatusConflict, ErrCodeConflict, "agent finalize-env already in progress", map[string]interface{}{
+			"agentId": id,
+		})
+		return
+	}
 	if ok {
-		delete(s.pendingEnvGather, id)
+		pending.State = pendingStateFinalizing
+		pending.UpdatedAt = time.Now()
+		pending.FinalizeRuns++
+		s.upsertPendingState(pending)
 	}
 	s.pendingEnvGatherMu.Unlock()
 
@@ -1744,9 +1842,21 @@ func (s *Server) finalizeEnv(w http.ResponseWriter, r *http.Request, id string) 
 	mgr := s.resolveManagerForOpts(opts)
 	agentInfo, err := mgr.Start(ctx, opts)
 	if err != nil {
+		// Keep pending state for retry on transient start failures.
+		s.pendingEnvGatherMu.Lock()
+		if cur, exists := s.pendingEnvGather[id]; exists {
+			cur.State = pendingStatePending
+			cur.UpdatedAt = time.Now()
+			s.upsertPendingState(cur)
+		}
+		s.pendingEnvGatherMu.Unlock()
 		RuntimeError(w, "Failed to create agent: "+err.Error())
 		return
 	}
+
+	s.pendingEnvGatherMu.Lock()
+	s.deletePendingState(id)
+	s.pendingEnvGatherMu.Unlock()
 
 	resp := CreateAgentResponse{
 		Agent:   agentInfoPtr(AgentInfoToResponse(*agentInfo)),

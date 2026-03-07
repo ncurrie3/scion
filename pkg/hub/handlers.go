@@ -191,6 +191,9 @@ type CreateAgentRequest struct {
 	GatherEnv bool `json:"gatherEnv,omitempty"`
 	// Notify subscribes the creating agent/user to status notifications for the new agent.
 	Notify bool `json:"notify,omitempty"`
+	// CleanupMode controls stale-existing-agent cleanup behavior during create:
+	// "strict" (default) fails create if broker cleanup fails; "force" continues.
+	CleanupMode string `json:"cleanupMode,omitempty"`
 }
 
 type CreateAgentResponse struct {
@@ -317,6 +320,10 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 	}
 	if req.GroveID == "" {
 		ValidationError(w, "groveId is required", nil)
+		return
+	}
+	if req.CleanupMode != "" && req.CleanupMode != "strict" && req.CleanupMode != "force" {
+		ValidationError(w, "cleanupMode must be 'strict' or 'force'", nil)
 		return
 	}
 
@@ -2545,6 +2552,10 @@ func (s *Server) createGroveAgent(w http.ResponseWriter, r *http.Request, groveI
 	// Validate required fields
 	if req.Name == "" {
 		ValidationError(w, "name is required", nil)
+		return
+	}
+	if req.CleanupMode != "" && req.CleanupMode != "strict" && req.CleanupMode != "force" {
+		ValidationError(w, "cleanupMode must be 'strict' or 'force'", nil)
 		return
 	}
 
@@ -6220,6 +6231,10 @@ func (s *Server) handleExistingAgent(
 	if existingAgent == nil {
 		return existingAgentNone
 	}
+	cleanupMode := req.CleanupMode
+	if cleanupMode == "" {
+		cleanupMode = "strict"
+	}
 
 	// Phase 1: Stale cleanup — agent is running/stopped/error and caller wants a real start.
 	if !req.ProvisionOnly &&
@@ -6228,7 +6243,14 @@ func (s *Server) handleExistingAgent(
 			existingAgent.Phase == string(state.PhaseError)) {
 		dispatcher := s.GetDispatcher()
 		if dispatcher != nil && existingAgent.RuntimeBrokerID != "" {
-			_ = dispatcher.DispatchAgentDelete(ctx, existingAgent, false, false, false, time.Time{})
+			if err := dispatcher.DispatchAgentDelete(ctx, existingAgent, false, false, false, time.Time{}); err != nil {
+				if cleanupMode != "force" {
+					RuntimeError(w, "Failed to clean up existing agent before recreate: "+err.Error())
+					return existingAgentErrored
+				}
+				s.agentLifecycleLog.Warn("Proceeding after stale-agent cleanup failure due to cleanupMode=force",
+					"agentID", existingAgent.ID, "agentName", existingAgent.Name, "error", err)
+			}
 		}
 		if err := s.store.DeleteAgent(ctx, existingAgent.ID); err != nil {
 			writeErrorFromErr(w, err, "")
@@ -6241,7 +6263,14 @@ func (s *Server) handleExistingAgent(
 	if req.GatherEnv && existingAgent.Phase == string(state.PhaseProvisioning) {
 		dispatcher := s.GetDispatcher()
 		if dispatcher != nil && existingAgent.RuntimeBrokerID != "" {
-			_ = dispatcher.DispatchAgentDelete(ctx, existingAgent, false, false, false, time.Time{})
+			if err := dispatcher.DispatchAgentDelete(ctx, existingAgent, false, false, false, time.Time{}); err != nil {
+				if cleanupMode != "force" {
+					RuntimeError(w, "Failed to clean up existing provisioning agent before env-gather recreate: "+err.Error())
+					return existingAgentErrored
+				}
+				s.agentLifecycleLog.Warn("Proceeding after env-gather cleanup failure due to cleanupMode=force",
+					"agentID", existingAgent.ID, "agentName", existingAgent.Name, "error", err)
+			}
 		}
 		if err := s.store.DeleteAgent(ctx, existingAgent.ID); err != nil {
 			writeErrorFromErr(w, err, "")

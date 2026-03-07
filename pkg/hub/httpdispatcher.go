@@ -576,6 +576,7 @@ func (d *HTTPAgentDispatcher) buildCreateRequest(ctx context.Context, agent *sto
 
 	// Build the remote create request
 	req := &RemoteCreateAgentRequest{
+		RequestID:   api.NewUUID(),
 		ID:          agent.ID,
 		Slug:        agent.Slug,
 		Name:        agent.Name,
@@ -909,7 +910,7 @@ func (d *HTTPAgentDispatcher) DispatchFinalizeEnv(ctx context.Context, agent *st
 		return err
 	}
 
-	resp, err := d.client.FinalizeEnv(ctx, agent.RuntimeBrokerID, endpoint, agent.Name, env)
+	resp, err := d.client.FinalizeEnv(ctx, agent.RuntimeBrokerID, endpoint, agent.ID, env)
 	if err != nil {
 		return err
 	}
