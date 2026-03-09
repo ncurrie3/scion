@@ -669,6 +669,118 @@ func TestClient_StartTokenRefresh(t *testing.T) {
 	})
 }
 
+func TestOperatingMode(t *testing.T) {
+	// Save and restore env vars
+	origEndpoint := os.Getenv(EnvHubEndpoint)
+	origURL := os.Getenv(EnvHubURL)
+	origMode := os.Getenv(EnvAgentMode)
+	defer func() {
+		os.Setenv(EnvHubEndpoint, origEndpoint)
+		os.Setenv(EnvHubURL, origURL)
+		os.Setenv(EnvAgentMode, origMode)
+	}()
+
+	tests := []struct {
+		name         string
+		endpoint     string
+		hubURL       string
+		agentMode    string
+		expectedMode Mode
+		expectedStr  string
+	}{
+		{
+			name:         "no hub configured returns ModeLocal",
+			endpoint:     "",
+			hubURL:       "",
+			agentMode:    "",
+			expectedMode: ModeLocal,
+			expectedStr:  "local",
+		},
+		{
+			name:         "hub endpoint set without hosted mode returns ModeHubConnected",
+			endpoint:     "http://hub.example.com",
+			hubURL:       "",
+			agentMode:    "",
+			expectedMode: ModeHubConnected,
+			expectedStr:  "hub-connected",
+		},
+		{
+			name:         "hub endpoint set with hosted mode returns ModeHosted",
+			endpoint:     "http://hub.example.com",
+			hubURL:       "",
+			agentMode:    "hosted",
+			expectedMode: ModeHosted,
+			expectedStr:  "hosted",
+		},
+		{
+			name:         "legacy hub URL set without hosted mode returns ModeHubConnected",
+			endpoint:     "",
+			hubURL:       "http://hub.example.com",
+			agentMode:    "",
+			expectedMode: ModeHubConnected,
+			expectedStr:  "hub-connected",
+		},
+		{
+			name:         "legacy hub URL set with hosted mode returns ModeHosted",
+			endpoint:     "",
+			hubURL:       "http://hub.example.com",
+			agentMode:    "hosted",
+			expectedMode: ModeHosted,
+			expectedStr:  "hosted",
+		},
+		{
+			name:         "non-hosted agent mode with hub returns ModeHubConnected",
+			endpoint:     "http://hub.example.com",
+			hubURL:       "",
+			agentMode:    "solo",
+			expectedMode: ModeHubConnected,
+			expectedStr:  "hub-connected",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			os.Unsetenv(EnvHubEndpoint)
+			os.Unsetenv(EnvHubURL)
+			os.Unsetenv(EnvAgentMode)
+			if tt.endpoint != "" {
+				os.Setenv(EnvHubEndpoint, tt.endpoint)
+			}
+			if tt.hubURL != "" {
+				os.Setenv(EnvHubURL, tt.hubURL)
+			}
+			if tt.agentMode != "" {
+				os.Setenv(EnvAgentMode, tt.agentMode)
+			}
+
+			mode := OperatingMode()
+			assert.Equal(t, tt.expectedMode, mode)
+			assert.Equal(t, tt.expectedStr, mode.String())
+		})
+	}
+}
+
+func TestOperatingMode_Defaults(t *testing.T) {
+	// Save and restore env vars
+	origEndpoint := os.Getenv(EnvHubEndpoint)
+	origURL := os.Getenv(EnvHubURL)
+	origMode := os.Getenv(EnvAgentMode)
+	defer func() {
+		os.Setenv(EnvHubEndpoint, origEndpoint)
+		os.Setenv(EnvHubURL, origURL)
+		os.Setenv(EnvAgentMode, origMode)
+	}()
+
+	// Clear all relevant env vars
+	os.Unsetenv(EnvHubEndpoint)
+	os.Unsetenv(EnvHubURL)
+	os.Unsetenv(EnvAgentMode)
+
+	mode := OperatingMode()
+	assert.Equal(t, ModeLocal, mode, "should default to ModeLocal when no env vars are set")
+	assert.Equal(t, "local", mode.String())
+}
+
 func TestClient_StartHeartbeat_DefaultConfig(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)

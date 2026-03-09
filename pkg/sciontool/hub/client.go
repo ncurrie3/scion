@@ -46,6 +46,49 @@ const (
 
 	// AgentModeHosted indicates the agent is running in hosted mode.
 	AgentModeHosted = "hosted"
+)
+
+// Mode represents the operating mode of the sciontool within a container.
+type Mode int
+
+const (
+	// ModeLocal indicates no hub is configured (SCION_HUB_ENDPOINT not set).
+	ModeLocal Mode = iota
+	// ModeHubConnected indicates a hub is configured but the agent is not in hosted mode.
+	ModeHubConnected
+	// ModeHosted indicates a hub is configured and SCION_AGENT_MODE=hosted.
+	ModeHosted
+)
+
+// String returns a human-readable label for the mode.
+func (m Mode) String() string {
+	switch m {
+	case ModeHubConnected:
+		return "hub-connected"
+	case ModeHosted:
+		return "hosted"
+	default:
+		return "local"
+	}
+}
+
+// OperatingMode returns the current operating mode based on environment variables.
+// It consolidates the mode detection logic from IsConfigured() and IsHostedMode().
+func OperatingMode() Mode {
+	hubURL := os.Getenv(EnvHubEndpoint)
+	if hubURL == "" {
+		hubURL = os.Getenv(EnvHubURL)
+	}
+	if hubURL == "" {
+		return ModeLocal
+	}
+	if os.Getenv(EnvAgentMode) == AgentModeHosted {
+		return ModeHosted
+	}
+	return ModeHubConnected
+}
+
+const (
 
 	// DefaultTimeout is the default HTTP request timeout.
 	DefaultTimeout = 30 * time.Second

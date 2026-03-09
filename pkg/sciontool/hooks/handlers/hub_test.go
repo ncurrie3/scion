@@ -443,6 +443,150 @@ func TestHubHandler_StickyStatus(t *testing.T) {
 	}
 }
 
+// TestHubHandler_ModeBehavior verifies behavior differences between local and hub modes.
+func TestHubHandler_ModeBehavior(t *testing.T) {
+	t.Run("local mode: HubHandler is nil", func(t *testing.T) {
+		// Clear hub env vars to simulate local mode
+		os.Unsetenv("SCION_HUB_ENDPOINT")
+		os.Unsetenv("SCION_HUB_URL")
+		os.Unsetenv("SCION_AUTH_TOKEN")
+		os.Unsetenv("SCION_AGENT_ID")
+
+		handler := NewHubHandler()
+		if handler != nil {
+			t.Error("HubHandler should be nil in local mode (no hub configured)")
+		}
+	})
+
+	t.Run("local mode: StatusHandler always writes agent-info.json", func(t *testing.T) {
+		// Even without a hub, the StatusHandler must write to agent-info.json
+		// for local observability (defense-in-depth).
+		tmpHome := t.TempDir()
+		origHome := os.Getenv("HOME")
+		os.Setenv("HOME", tmpHome)
+		defer os.Setenv("HOME", origHome)
+
+		// Clear hub env to ensure local mode
+		os.Unsetenv("SCION_HUB_ENDPOINT")
+		os.Unsetenv("SCION_HUB_URL")
+		os.Unsetenv("SCION_AUTH_TOKEN")
+		os.Unsetenv("SCION_AGENT_ID")
+
+		statusHandler := NewStatusHandler()
+		event := &hooks.Event{
+			Name: hooks.EventSessionStart,
+		}
+		err := statusHandler.Handle(event)
+		if err != nil {
+			t.Fatalf("StatusHandler.Handle returned error: %v", err)
+		}
+
+		// Verify agent-info.json was written
+		infoPath := tmpHome + "/agent-info.json"
+		data, err := os.ReadFile(infoPath)
+		if err != nil {
+			t.Fatalf("agent-info.json should exist in local mode: %v", err)
+		}
+
+		var info map[string]interface{}
+		if err := json.Unmarshal(data, &info); err != nil {
+			t.Fatalf("agent-info.json should be valid JSON: %v", err)
+		}
+	})
+
+	t.Run("hub mode: HubHandler is active and sends updates", func(t *testing.T) {
+		tmpHome := t.TempDir()
+		origHome := os.Getenv("HOME")
+		os.Setenv("HOME", tmpHome)
+		defer os.Setenv("HOME", origHome)
+
+		callCount := 0
+		var mu sync.Mutex
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			callCount++
+			mu.Unlock()
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{}`))
+		}))
+		defer server.Close()
+
+		os.Setenv("SCION_HUB_ENDPOINT", server.URL)
+		os.Setenv("SCION_AUTH_TOKEN", "test-token")
+		os.Setenv("SCION_AGENT_ID", "test-agent")
+		defer func() {
+			os.Unsetenv("SCION_HUB_ENDPOINT")
+			os.Unsetenv("SCION_AUTH_TOKEN")
+			os.Unsetenv("SCION_AGENT_ID")
+		}()
+
+		handler := NewHubHandler()
+		if handler == nil {
+			t.Fatal("HubHandler should be non-nil when hub is configured")
+		}
+
+		event := &hooks.Event{
+			Name: hooks.EventSessionStart,
+		}
+		err := handler.Handle(event)
+		if err != nil {
+			t.Fatalf("Handle returned error: %v", err)
+		}
+
+		mu.Lock()
+		got := callCount
+		mu.Unlock()
+		if got != 1 {
+			t.Errorf("Expected 1 hub API call, got %d", got)
+		}
+	})
+
+	t.Run("hub mode: StatusHandler still writes agent-info.json", func(t *testing.T) {
+		// In hub mode, StatusHandler should still write locally for defense-in-depth.
+		tmpHome := t.TempDir()
+		origHome := os.Getenv("HOME")
+		os.Setenv("HOME", tmpHome)
+		defer os.Setenv("HOME", origHome)
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte(`{}`))
+		}))
+		defer server.Close()
+
+		os.Setenv("SCION_HUB_ENDPOINT", server.URL)
+		os.Setenv("SCION_AUTH_TOKEN", "test-token")
+		os.Setenv("SCION_AGENT_ID", "test-agent")
+		defer func() {
+			os.Unsetenv("SCION_HUB_ENDPOINT")
+			os.Unsetenv("SCION_AUTH_TOKEN")
+			os.Unsetenv("SCION_AGENT_ID")
+		}()
+
+		statusHandler := NewStatusHandler()
+		event := &hooks.Event{
+			Name: hooks.EventSessionStart,
+		}
+		err := statusHandler.Handle(event)
+		if err != nil {
+			t.Fatalf("StatusHandler.Handle returned error: %v", err)
+		}
+
+		// Verify agent-info.json was still written (defense-in-depth)
+		infoPath := tmpHome + "/agent-info.json"
+		data, err := os.ReadFile(infoPath)
+		if err != nil {
+			t.Fatalf("agent-info.json should exist even in hub mode: %v", err)
+		}
+
+		var info map[string]interface{}
+		if err := json.Unmarshal(data, &info); err != nil {
+			t.Fatalf("agent-info.json should be valid JSON: %v", err)
+		}
+	})
+}
+
 // TestTruncateMessage tests the truncation helper function.
 func TestTruncateMessage(t *testing.T) {
 	tests := []struct {

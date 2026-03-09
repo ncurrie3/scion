@@ -99,6 +99,17 @@ func runInit(args []string) int {
 	log.Info("Child command: %v", childArgs)
 	log.Info("Grace period: %s", gracePeriod)
 
+	// Log operating mode for diagnostics
+	mode := hub.OperatingMode()
+	switch mode {
+	case hub.ModeLocal:
+		log.Info("Operating mode: local (no hub configured)")
+	case hub.ModeHubConnected:
+		log.Info("Operating mode: hub-connected (endpoint: %s)", os.Getenv(hub.EnvHubEndpoint))
+	case hub.ModeHosted:
+		log.Info("Operating mode: hosted (endpoint: %s)", os.Getenv(hub.EnvHubEndpoint))
+	}
+
 	// Set up scion user UID/GID to match host user
 	targetUID, targetGID := setupHostUser()
 

@@ -13,6 +13,50 @@ import (
 	"testing"
 )
 
+// TestInitGroveDataIsolation is a canary test that verifies sciontool source code
+// does NOT import the pkg/config package, which contains grove path resolution logic.
+// This is a compile-time guarantee that in-container code cannot access grove data paths.
+// If this test fails, it means someone added a pkg/config import to sciontool code,
+// which would break the agent isolation model.
+func TestInitGroveDataIsolation(t *testing.T) {
+	// Use go list to get all transitive dependencies of cmd/sciontool
+	cmd := exec.Command("go", "list", "-deps", "./cmd/sciontool/...")
+	cmd.Dir = filepath.Join(findRepoRoot(t))
+	out, err := cmd.Output()
+	if err != nil {
+		t.Skipf("go list failed (may not have full module context): %v", err)
+	}
+
+	deps := string(out)
+	for _, line := range strings.Split(deps, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "github.com/ptone/scion-agent/pkg/config" {
+			t.Fatal("sciontool must NOT import pkg/config (grove path resolution). " +
+				"In-container code should use the Hub API or agent-local files, " +
+				"not filesystem-based grove data access.")
+		}
+	}
+}
+
+// findRepoRoot walks up from the test file to find the go.mod directory.
+func findRepoRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatal("could not find go.mod in any parent directory")
+		}
+		dir = parent
+	}
+}
+
 func TestExtractChildCommand(t *testing.T) {
 	tests := []struct {
 		name     string

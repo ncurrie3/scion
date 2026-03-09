@@ -247,20 +247,18 @@ Add CLI commands for grove lifecycle management.
 - Grove registry/discovery logic
 - Tests for prune and reconnect scenarios
 
-### Phase 5: Hub API Consolidation (Separate Work Session)
+### Phase 5: Hub API Consolidation ✅ COMPLETE
 
-Audit and ensure all in-container CLI operations route through the Hub API, eliminating filesystem-based grove data access from within containers.
+Audited all in-container CLI operations to verify they route through the Hub API when configured, and do not access filesystem-based grove data.
 
-**Scope:**
-- Audit `sciontool` commands for filesystem access to grove data
-- Route all state queries through `SCION_HUB_ENDPOINT`
-- Support behavioral differences based on `hub.enabled`
-- Mount-level protections become defense-in-depth
+**Audit Finding:** sciontool already does NOT access grove-level data from the filesystem. All filesystem access is agent-local (`$HOME/agent-info.json`, `$HOME/agent-limits.json`, `$HOME/.scion/scion-services.yaml`). Hub API communication already works for status updates, heartbeats, and token refresh. The remaining work was formalizing this with explicit mode awareness and codifying the guarantees in tests.
 
 **Deliverables:**
-- Audited and updated `sciontool` command set
-- Hub API coverage for all in-container operations
-- Tests for hub-enabled vs hub-disabled behavior
+- `OperatingMode()` helper in `pkg/sciontool/hub/client.go` — consolidates mode detection (local/hub-connected/hosted)
+- Mode-aware startup logging in `cmd/sciontool/commands/init.go`
+- Import isolation canary test — verifies sciontool does NOT import `pkg/config` (grove path resolution)
+- Operating mode tests — table-driven tests for all three modes
+- Hub-enabled vs hub-disabled behavioral tests — verifies HubHandler is nil in local mode and active in hub mode, and StatusHandler always writes agent-info.json (defense-in-depth)
 
 ---
 
