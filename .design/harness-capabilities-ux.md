@@ -53,7 +53,7 @@ Event mapping:
 Result:
 - `max_turns`: effectively supported for Gemini and Claude.
 - `max_model_calls`: effectively supported only for Gemini.
-- `max_duration`: currently not enforced anywhere in runtime/sciontool despite being passed as `SCION_MAX_DURATION` from `pkg/agent/run.go`.
+- `max_duration`: enforced by sciontool init (harness-agnostic), supported for all harnesses.
 
 ### 4) Telemetry has two layers of support
 Layer A: Scion telemetry pipeline (`SCION_TELEMETRY_*`, `SCION_OTEL_*`) is harness-agnostic, driven by `pkg/agent/run.go` + `cmd/sciontool/commands/init.go`.

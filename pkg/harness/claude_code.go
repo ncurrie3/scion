@@ -42,7 +42,7 @@ func (c *ClaudeCode) AdvancedCapabilities() api.HarnessAdvancedCapabilities {
 		Limits: api.HarnessLimitCapabilities{
 			MaxTurns:      api.CapabilityField{Support: api.SupportYes},
 			MaxModelCalls: api.CapabilityField{Support: api.SupportNo, Reason: "This harness does not emit model-end hook events"},
-			MaxDuration:   api.CapabilityField{Support: api.SupportNo, Reason: "Not implemented yet"},
+			MaxDuration:   api.CapabilityField{Support: api.SupportYes},
 		},
 		Telemetry: api.HarnessTelemetryCapabilities{
 			EnabledConfig: api.CapabilityField{Support: api.SupportYes},

@@ -40,7 +40,7 @@ func (g *GeminiCLI) AdvancedCapabilities() api.HarnessAdvancedCapabilities {
 		Limits: api.HarnessLimitCapabilities{
 			MaxTurns:      api.CapabilityField{Support: api.SupportYes},
 			MaxModelCalls: api.CapabilityField{Support: api.SupportYes},
-			MaxDuration:   api.CapabilityField{Support: api.SupportNo, Reason: "Not implemented yet"},
+			MaxDuration:   api.CapabilityField{Support: api.SupportYes},
 		},
 		Telemetry: api.HarnessTelemetryCapabilities{
 			EnabledConfig: api.CapabilityField{Support: api.SupportYes},

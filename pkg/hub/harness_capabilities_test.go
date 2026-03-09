@@ -104,7 +104,7 @@ func TestUpdateAgent_AllowsGeminiMaxModelCalls(t *testing.T) {
 	assert.Equal(t, 3, updated.AppliedConfig.InlineConfig.MaxModelCalls)
 }
 
-func TestUpdateAgent_RejectsMaxDurationForAllHarnesses(t *testing.T) {
+func TestUpdateAgent_AllowsMaxDurationForAllHarnesses(t *testing.T) {
 	srv, s := testServer(t)
 	agent := seedCreatedAgentForHarnessTest(t, s, "duration-update", "gemini")
 
@@ -113,14 +113,11 @@ func TestUpdateAgent_RejectsMaxDurationForAllHarnesses(t *testing.T) {
 			"max_duration": "10m",
 		},
 	})
-	require.Equal(t, http.StatusBadRequest, rec.Code)
+	require.Equal(t, http.StatusOK, rec.Code)
 
-	var errResp ErrorResponse
-	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &errResp))
-	assert.Equal(t, ErrCodeValidationError, errResp.Error.Code)
-	require.NotNil(t, errResp.Error.Details)
-	fields, ok := errResp.Error.Details["fields"].(map[string]interface{})
-	require.True(t, ok)
-	_, has := fields["max_duration"]
-	assert.True(t, has)
+	updated, err := s.GetAgent(context.Background(), agent.ID)
+	require.NoError(t, err)
+	require.NotNil(t, updated.AppliedConfig)
+	require.NotNil(t, updated.AppliedConfig.InlineConfig)
+	assert.Equal(t, "10m", updated.AppliedConfig.InlineConfig.MaxDuration)
 }

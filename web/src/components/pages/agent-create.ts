@@ -60,6 +60,9 @@ export class ScionPageAgentCreate extends LitElement {
   private notify = true;
 
   @state()
+  private maxDuration = '';
+
+  @state()
   private telemetryEnabled = false;
 
   /** ID of an existing agent we're editing (came back from configure page) */
@@ -387,12 +390,16 @@ export class ScionPageAgentCreate extends LitElement {
         body.task = this.task.trim();
       }
 
-      // Pass telemetry preference via config env, matching CLI behavior
-      body.config = {
+      // Pass config options
+      const config: Record<string, unknown> = {
         env: {
           SCION_TELEMETRY_ENABLED: this.telemetryEnabled ? 'true' : 'false',
         },
       };
+      if (this.maxDuration.trim()) {
+        config.max_duration = this.maxDuration.trim();
+      }
+      body.config = config;
 
       const response = await fetch('/api/v1/agents', {
         method: 'POST',
@@ -490,6 +497,9 @@ export class ScionPageAgentCreate extends LitElement {
       }
       if (this.task.trim()) {
         body.task = this.task.trim();
+      }
+      if (this.maxDuration.trim()) {
+        body.config = { max_duration: this.maxDuration.trim() };
       }
 
       const response = await fetch('/api/v1/agents', {
@@ -760,6 +770,19 @@ export class ScionPageAgentCreate extends LitElement {
               resize="auto"
             ></sl-textarea>
             <div class="hint">The task or prompt to start the agent with.</div>
+          </div>
+
+          <div class="form-field">
+            <label for="max-duration">Max Duration</label>
+            <sl-input
+              id="max-duration"
+              placeholder="e.g. 30m, 2h"
+              .value=${this.maxDuration}
+              @sl-input=${(e: Event) => {
+                this.maxDuration = (e.target as HTMLElement & { value: string }).value;
+              }}
+            ></sl-input>
+            <div class="hint">Go duration string. Empty means no limit.</div>
           </div>
 
           <div class="notify-field">
