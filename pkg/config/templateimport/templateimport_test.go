@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 // --- Front Matter Tests ---

@@ -21,9 +21,9 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/config"
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 	"github.com/spf13/cobra"
 )
 

@@ -24,9 +24,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/config"
-	"github.com/ptone/scion-agent/pkg/hubclient"
-	"github.com/ptone/scion-agent/pkg/hubsync"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubsync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

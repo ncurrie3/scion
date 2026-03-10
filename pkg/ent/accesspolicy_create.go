@@ -11,9 +11,9 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent/accesspolicy"
-	"github.com/ptone/scion-agent/pkg/ent/policybinding"
-	"github.com/ptone/scion-agent/pkg/ent/schema"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/accesspolicy"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/policybinding"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/schema"
 )
 
 // AccessPolicyCreate is the builder for creating a AccessPolicy entity.

@@ -6,8 +6,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/ptone/scion-agent/pkg/util"
-	"github.com/ptone/scion-agent/pkg/version"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/version"
 	"github.com/spf13/cobra"
 )
 

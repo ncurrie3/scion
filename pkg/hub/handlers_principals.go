@@ -18,7 +18,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // ============================================================================

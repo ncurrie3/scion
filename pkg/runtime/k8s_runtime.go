@@ -30,9 +30,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/gcp"
-	"github.com/ptone/scion-agent/pkg/k8s"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/gcp"
+	"github.com/GoogleCloudPlatform/scion/pkg/k8s"
 	"golang.org/x/term"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"

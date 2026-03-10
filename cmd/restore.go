@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 	"github.com/spf13/cobra"
 )
 

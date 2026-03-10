@@ -20,7 +20,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 func TestGeneric_Name(t *testing.T) {

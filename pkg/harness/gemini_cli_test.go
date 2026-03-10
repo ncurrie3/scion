@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 func TestGeminiGetTelemetryEnv(t *testing.T) {

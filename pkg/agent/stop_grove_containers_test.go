@@ -18,8 +18,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/runtime"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/runtime"
 )
 
 func TestStopGroveContainers_StopsMatchingContainers(t *testing.T) {

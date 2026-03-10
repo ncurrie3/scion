@@ -20,10 +20,10 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/config"
-	"github.com/ptone/scion-agent/pkg/k8s"
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/k8s"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 )
 
 // GetRuntime returns the appropriate Runtime implementation based on environment,

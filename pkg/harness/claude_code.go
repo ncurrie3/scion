@@ -23,9 +23,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	claudeEmbeds "github.com/ptone/scion-agent/pkg/harness/claude"
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	claudeEmbeds "github.com/GoogleCloudPlatform/scion/pkg/harness/claude"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 )
 
 type ClaudeCode struct {

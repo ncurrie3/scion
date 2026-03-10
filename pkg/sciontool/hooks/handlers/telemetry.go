@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks"
-	"github.com/ptone/scion-agent/pkg/sciontool/log"
-	"github.com/ptone/scion-agent/pkg/sciontool/telemetry"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/log"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/telemetry"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -74,7 +74,7 @@ type TelemetryHandler struct {
 func NewTelemetryHandler(tp trace.TracerProvider, lp otellog.LoggerProvider, redactor *telemetry.Redactor, mp ...metric.MeterProvider) *TelemetryHandler {
 	var tracer trace.Tracer
 	if tp != nil {
-		tracer = tp.Tracer("github.com/ptone/scion-agent/pkg/sciontool/hooks/handlers")
+		tracer = tp.Tracer("github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks/handlers")
 	} else {
 		tracer = trace.NewNoopTracerProvider().Tracer("noop")
 	}
@@ -100,7 +100,7 @@ func NewTelemetryHandler(tp trace.TracerProvider, lp otellog.LoggerProvider, red
 
 // initMetrics creates OTel metric instruments on the handler.
 func (h *TelemetryHandler) initMetrics(mp metric.MeterProvider) {
-	meter := mp.Meter("github.com/ptone/scion-agent/pkg/sciontool/hooks/handlers")
+	meter := mp.Meter("github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks/handlers")
 
 	var err error
 

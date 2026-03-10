@@ -25,8 +25,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/sciontool/log"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/log"
 )
 
 const maxConsecutiveFailures = 3

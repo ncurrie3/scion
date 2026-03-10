@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 )
 
 type AppleContainerRuntime struct {

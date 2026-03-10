@@ -15,7 +15,7 @@
 package agent
 
 import (
-	"github.com/ptone/scion-agent/pkg/runtime"
+	"github.com/GoogleCloudPlatform/scion/pkg/runtime"
 )
 
 // ResolveRuntime determines the runtime to use for an agent.

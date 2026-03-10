@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/store/sqlite"
+	"github.com/GoogleCloudPlatform/scion/pkg/store/sqlite"
 )
 
 func TestServer_PersistentSigningKeys(t *testing.T) {

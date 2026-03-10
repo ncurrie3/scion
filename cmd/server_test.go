@@ -20,9 +20,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/config"
-	"github.com/ptone/scion-agent/pkg/store"
-	"github.com/ptone/scion-agent/pkg/store/sqlite"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store/sqlite"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

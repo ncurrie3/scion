@@ -19,7 +19,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/harness"
+	"github.com/GoogleCloudPlatform/scion/pkg/harness"
 )
 
 func TestLoadHarnessConfigDir(t *testing.T) {

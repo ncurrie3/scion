@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/dustin/go-humanize"
-	"github.com/ptone/scion-agent/pkg/agent"
-	"github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/hubclient"
-	"github.com/ptone/scion-agent/pkg/runtime"
-	"github.com/ptone/scion-agent/pkg/transfer"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/runtime"
+	"github.com/GoogleCloudPlatform/scion/pkg/transfer"
 	"github.com/spf13/cobra"
 )
 

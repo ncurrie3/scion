@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 // --- Stage 3: Enhanced error messages ---

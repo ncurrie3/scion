@@ -18,8 +18,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/storage"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/storage"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // generateUploadURLs generates signed PUT URLs for a list of files under basePath.

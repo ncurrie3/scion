@@ -5,12 +5,12 @@ package enttest
 import (
 	"context"
 
-	"github.com/ptone/scion-agent/pkg/ent"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent"
 	// required by schema hooks.
-	_ "github.com/ptone/scion-agent/pkg/ent/runtime"
+	_ "github.com/GoogleCloudPlatform/scion/pkg/ent/runtime"
 
 	"entgo.io/ent/dialect/sql/schema"
-	"github.com/ptone/scion-agent/pkg/ent/migrate"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/migrate"
 )
 
 type (

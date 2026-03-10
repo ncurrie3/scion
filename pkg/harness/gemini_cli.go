@@ -23,9 +23,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	geminiEmbeds "github.com/ptone/scion-agent/pkg/harness/gemini"
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	geminiEmbeds "github.com/GoogleCloudPlatform/scion/pkg/harness/gemini"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 )
 
 type GeminiCLI struct{}

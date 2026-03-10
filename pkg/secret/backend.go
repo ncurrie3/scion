@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // Backend type constants.

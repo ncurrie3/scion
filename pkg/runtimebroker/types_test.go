@@ -17,8 +17,8 @@ package runtimebroker
 import (
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 func TestAgentInfoToResponse(t *testing.T) {

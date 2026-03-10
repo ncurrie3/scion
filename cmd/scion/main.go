@@ -3,7 +3,7 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 */
 package main
 
-import "github.com/ptone/scion-agent/cmd"
+import "github.com/GoogleCloudPlatform/scion/cmd"
 
 func main() {
 	cmd.Execute()

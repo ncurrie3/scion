@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 const defaultMaintenanceMessage = "System offline for maintenance"

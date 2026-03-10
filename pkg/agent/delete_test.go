@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 )
 
 func setupGitRepo(t *testing.T, dir string) {

@@ -12,7 +12,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks"
 )
 
 // TestHubHandler_EventMapping tests that events are correctly mapped to Hub status updates.

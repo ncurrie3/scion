@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // DevUser represents the pseudo-user for development authentication.

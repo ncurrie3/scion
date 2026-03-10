@@ -17,7 +17,7 @@ package hubclient
 import (
 	"context"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // UserService handles user operations.

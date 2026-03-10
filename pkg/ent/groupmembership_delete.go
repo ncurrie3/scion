@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/ptone/scion-agent/pkg/ent/groupmembership"
-	"github.com/ptone/scion-agent/pkg/ent/predicate"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/groupmembership"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/predicate"
 )
 
 // GroupMembershipDelete is the builder for deleting a GroupMembership entity.

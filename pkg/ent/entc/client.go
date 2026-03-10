@@ -23,8 +23,8 @@ import (
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
-	"github.com/ptone/scion-agent/pkg/ent"
-	"github.com/ptone/scion-agent/pkg/ent/migrate"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/migrate"
 )
 
 // OpenSQLite creates an Ent client backed by SQLite.

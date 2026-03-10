@@ -18,8 +18,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
-	"github.com/ptone/scion-agent/pkg/transfer"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/transfer"
 )
 
 // WorkspaceService handles workspace synchronization operations.

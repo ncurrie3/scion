@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // BrokerAuthConfig configures host-side HMAC authentication.

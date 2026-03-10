@@ -21,9 +21,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/agent"
-	"github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 const (

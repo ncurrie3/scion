@@ -15,7 +15,7 @@
 package harness
 
 import (
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 func New(harnessName string) api.Harness {

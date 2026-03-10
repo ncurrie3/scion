@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 // mockAuthService implements hubclient.AuthService for testing.

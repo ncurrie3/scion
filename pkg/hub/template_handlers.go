@@ -23,9 +23,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/storage"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/storage"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // SignedURLExpiry is the duration signed URLs are valid for.

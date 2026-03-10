@@ -22,12 +22,12 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/gcp"
-	"github.com/ptone/scion-agent/pkg/storage"
-	"github.com/ptone/scion-agent/pkg/store"
-	"github.com/ptone/scion-agent/pkg/transfer"
-	"github.com/ptone/scion-agent/pkg/wsprotocol"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/gcp"
+	"github.com/GoogleCloudPlatform/scion/pkg/storage"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/transfer"
+	"github.com/GoogleCloudPlatform/scion/pkg/wsprotocol"
 )
 
 // Workspace sync request/response types following the design in sync-design.md Section 7.

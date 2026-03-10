@@ -29,7 +29,7 @@ COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Package to inject variables into (accept override as first argument)
-PKG="${1:-github.com/ptone/scion-agent/pkg/version}"
+PKG="${1:-github.com/GoogleCloudPlatform/scion/pkg/version}"
 
 # Construct ldflags
 LDFLAGS="-X ${PKG}.Commit=${COMMIT} -X ${PKG}.BuildTime=${BUILD_TIME}"

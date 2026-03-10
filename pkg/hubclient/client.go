@@ -21,8 +21,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 )
 
 // Client is the interface for the Hub API client.

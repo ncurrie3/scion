@@ -13,10 +13,10 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent/agent"
-	"github.com/ptone/scion-agent/pkg/ent/group"
-	"github.com/ptone/scion-agent/pkg/ent/grove"
-	"github.com/ptone/scion-agent/pkg/ent/predicate"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/agent"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/group"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/grove"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/predicate"
 )
 
 // GroveQuery is the builder for querying Grove entities.

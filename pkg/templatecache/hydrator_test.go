@@ -24,8 +24,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/hubclient"
-	"github.com/ptone/scion-agent/pkg/transfer"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/transfer"
 )
 
 // mockTemplateService is a mock implementation of hubclient.TemplateService.

@@ -11,8 +11,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent/accesspolicy"
-	"github.com/ptone/scion-agent/pkg/ent/schema"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/accesspolicy"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/schema"
 )
 
 // AccessPolicy is the model entity for the AccessPolicy schema.

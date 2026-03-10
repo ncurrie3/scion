@@ -19,7 +19,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 // ConvertV1TelemetryToAPI converts settings-level telemetry config (V1TelemetryConfig)

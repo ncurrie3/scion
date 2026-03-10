@@ -19,9 +19,9 @@ import (
 	"context"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/messages"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // AuthenticatedBrokerClient is an HTTP-based RuntimeBrokerClient that signs

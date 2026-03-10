@@ -21,8 +21,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent/entc"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/entc"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

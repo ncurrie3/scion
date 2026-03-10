@@ -20,9 +20,9 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/ptone/scion-agent/pkg/broker"
-	"github.com/ptone/scion-agent/pkg/messages"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/broker"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // MessageBrokerProxy bridges the message broker with the Hub's agent lifecycle

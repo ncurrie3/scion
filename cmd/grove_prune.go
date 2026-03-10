@@ -21,10 +21,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/agent"
-	"github.com/ptone/scion-agent/pkg/config"
-	"github.com/ptone/scion-agent/pkg/runtime"
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/runtime"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 	"github.com/spf13/cobra"
 )
 

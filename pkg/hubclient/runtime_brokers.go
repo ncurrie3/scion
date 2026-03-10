@@ -18,7 +18,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // RuntimeBrokerService handles runtime broker operations.

@@ -12,10 +12,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	state "github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks/handlers"
-	"github.com/ptone/scion-agent/pkg/sciontool/hub"
-	"github.com/ptone/scion-agent/pkg/sciontool/log"
+	state "github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks/handlers"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hub"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/log"
 )
 
 // statusCmd represents the status command

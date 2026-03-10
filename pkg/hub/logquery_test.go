@@ -228,7 +228,7 @@ func TestConvertLogEntry(t *testing.T) {
 			SourceLocation: &logpb.LogEntrySourceLocation{
 				File:     "pkg/hub/dispatch.go",
 				Line:     342,
-				Function: "github.com/ptone/scion-agent/pkg/hub.(*Server).dispatch",
+				Function: "github.com/GoogleCloudPlatform/scion/pkg/hub.(*Server).dispatch",
 			},
 		}
 

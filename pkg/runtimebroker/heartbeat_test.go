@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 // mockRuntimeBrokerService implements hubclient.RuntimeBrokerService for testing.

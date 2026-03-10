@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
 )
 
 func newTestBroker() *InProcessBroker {

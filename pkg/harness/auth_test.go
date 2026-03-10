@@ -20,7 +20,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 func TestGatherAuth_EnvVars(t *testing.T) {

@@ -14,7 +14,7 @@
 
 package runtimebroker
 
-import "github.com/ptone/scion-agent/pkg/config"
+import "github.com/GoogleCloudPlatform/scion/pkg/config"
 
 const redactedEnvValue = "<redacted>"
 

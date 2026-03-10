@@ -30,7 +30,7 @@ func TestInitGroveDataIsolation(t *testing.T) {
 	deps := string(out)
 	for _, line := range strings.Split(deps, "\n") {
 		line = strings.TrimSpace(line)
-		if line == "github.com/ptone/scion-agent/pkg/config" {
+		if line == "github.com/GoogleCloudPlatform/scion/pkg/config" {
 			t.Fatal("sciontool must NOT import pkg/config (grove path resolution). " +
 				"In-container code should use the Hub API or agent-local files, " +
 				"not filesystem-based grove data access.")

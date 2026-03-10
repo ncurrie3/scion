@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"sync"
 
-	state "github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks"
+	state "github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks"
 )
 
 // StatusHandler manages agent status in a JSON file.

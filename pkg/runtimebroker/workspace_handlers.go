@@ -25,9 +25,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/gcp"
-	"github.com/ptone/scion-agent/pkg/storage"
-	"github.com/ptone/scion-agent/pkg/transfer"
+	"github.com/GoogleCloudPlatform/scion/pkg/gcp"
+	"github.com/GoogleCloudPlatform/scion/pkg/storage"
+	"github.com/GoogleCloudPlatform/scion/pkg/transfer"
 )
 
 // ============================================================================

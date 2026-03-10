@@ -20,7 +20,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 func TestUnifiedAuthMiddleware_DevToken(t *testing.T) {

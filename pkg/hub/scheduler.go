@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // EventHandler processes a one-shot scheduled event of a specific type.

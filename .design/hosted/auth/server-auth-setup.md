@@ -245,7 +245,7 @@ import (
     "path/filepath"
     "strings"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // WithDevToken sets a development token for authentication.

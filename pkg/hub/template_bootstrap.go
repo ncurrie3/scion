@@ -20,11 +20,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/config"
-	"github.com/ptone/scion-agent/pkg/storage"
-	"github.com/ptone/scion-agent/pkg/store"
-	"github.com/ptone/scion-agent/pkg/transfer"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/storage"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/transfer"
 )
 
 // BootstrapTemplatesFromDir imports local templates from a directory into

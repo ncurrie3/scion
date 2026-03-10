@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/config"
-	"github.com/ptone/scion-agent/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 	"github.com/spf13/cobra"
 )
 

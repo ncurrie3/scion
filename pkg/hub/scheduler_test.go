@@ -24,7 +24,7 @@ import (
 
 	"log/slog"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // newTestScheduler creates a scheduler with a fast tick interval for testing.

@@ -27,7 +27,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/ptone/scion-agent/pkg/wsprotocol"
+	"github.com/GoogleCloudPlatform/scion/pkg/wsprotocol"
 )
 
 // ControlChannelConfig holds configuration for the control channel.

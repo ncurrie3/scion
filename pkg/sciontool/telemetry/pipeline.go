@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/ptone/scion-agent/pkg/sciontool/log"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/log"
 	logspb "go.opentelemetry.io/proto/otlp/logs/v1"
 	metricpb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	tracepb "go.opentelemetry.io/proto/otlp/trace/v1"

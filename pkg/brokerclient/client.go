@@ -20,8 +20,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
-	"github.com/ptone/scion-agent/pkg/runtimebroker"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/runtimebroker"
 )
 
 // Client is the interface for the Runtime Broker API client.

@@ -18,7 +18,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // handleNotifications handles GET /api/v1/notifications.

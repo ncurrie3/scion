@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
 )
 
 // WebhookChannel delivers notifications by POSTing the structured message

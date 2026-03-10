@@ -20,7 +20,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
 )
 
 func TestProvisionOpencodeAgent(t *testing.T) {

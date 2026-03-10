@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	state "github.com/ptone/scion-agent/pkg/agent/state"
+	state "github.com/GoogleCloudPlatform/scion/pkg/agent/state"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -24,10 +24,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/agent"
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/runtime"
-	"github.com/ptone/scion-agent/pkg/transfer"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/runtime"
+	"github.com/GoogleCloudPlatform/scion/pkg/transfer"
 )
 
 // mockAgentManager implements agent.Manager for testing workspace handlers.

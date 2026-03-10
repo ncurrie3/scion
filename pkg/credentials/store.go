@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
 )
 
 const (

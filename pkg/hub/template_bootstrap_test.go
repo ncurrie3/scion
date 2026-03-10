@@ -23,8 +23,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/store"
-	"github.com/ptone/scion-agent/pkg/store/sqlite"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store/sqlite"
 )
 
 // testTemplateBootstrapServer creates a hub Server backed by an in-memory

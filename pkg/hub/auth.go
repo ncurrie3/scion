@@ -21,7 +21,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // AuthConfig holds authentication configuration.

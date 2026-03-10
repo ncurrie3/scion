@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/harness"
+	"github.com/GoogleCloudPlatform/scion/pkg/harness"
 )
 
 func TestPodmanRuntime_Run_NoInitFlag(t *testing.T) {

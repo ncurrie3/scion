@@ -22,8 +22,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	codexEmbeds "github.com/ptone/scion-agent/pkg/harness/codex"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	codexEmbeds "github.com/GoogleCloudPlatform/scion/pkg/harness/codex"
 )
 
 type Codex struct{}

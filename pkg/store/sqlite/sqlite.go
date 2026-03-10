@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // SQLiteStore implements the Store interface using SQLite.

@@ -19,7 +19,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // NotificationService handles notification operations.

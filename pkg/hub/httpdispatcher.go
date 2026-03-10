@@ -22,10 +22,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/messages"
-	"github.com/ptone/scion-agent/pkg/secret"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/secret"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // HTTPRuntimeBrokerClient is an HTTP-based implementation of RuntimeBrokerClient.

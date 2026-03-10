@@ -24,12 +24,12 @@ import (
 	"bufio"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/brokercredentials"
-	"github.com/ptone/scion-agent/pkg/config"
-	"github.com/ptone/scion-agent/pkg/harness"
-	"github.com/ptone/scion-agent/pkg/hubclient"
-	"github.com/ptone/scion-agent/pkg/hubsync"
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/brokercredentials"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/harness"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubsync"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 	"github.com/spf13/cobra"
 )
 

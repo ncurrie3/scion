@@ -16,7 +16,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/sciontool/log"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/log"
 )
 
 // ErrNoCommand is returned when no command is specified for the supervisor to run.

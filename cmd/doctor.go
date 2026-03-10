@@ -21,9 +21,9 @@ import (
 	"os/exec"
 	goruntime "runtime"
 
-	"github.com/ptone/scion-agent/pkg/config"
-	scionruntime "github.com/ptone/scion-agent/pkg/runtime"
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
+	scionruntime "github.com/GoogleCloudPlatform/scion/pkg/runtime"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 	"github.com/spf13/cobra"
 )
 

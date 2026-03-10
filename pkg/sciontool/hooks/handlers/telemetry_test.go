@@ -9,8 +9,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks"
-	"github.com/ptone/scion-agent/pkg/sciontool/telemetry"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/telemetry"
 	otellog "go.opentelemetry.io/otel/log"
 	sdklog "go.opentelemetry.io/otel/sdk/log"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"

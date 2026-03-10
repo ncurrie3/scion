@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/runtime"
+	"github.com/GoogleCloudPlatform/scion/pkg/runtime"
 )
 
 // newTestServerWithGrovePath creates a test server with a temporary grove path

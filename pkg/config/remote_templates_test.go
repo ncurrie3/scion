@@ -83,7 +83,7 @@ func TestParseGitHubURL(t *testing.T) {
 	}{
 		{
 			name:       "full tree URL with path",
-			uri:        "https://github.com/ptone/scion-agent/tree/main/pkg/config/embeds",
+			uri:        "https://github.com/GoogleCloudPlatform/scion/tree/main/pkg/config/embeds",
 			wantOwner:  "ptone",
 			wantRepo:   "scion-agent",
 			wantBranch: "main",

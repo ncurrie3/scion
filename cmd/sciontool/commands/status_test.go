@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/sciontool/log"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/log"
 )
 
 func TestStatusCommand(t *testing.T) {

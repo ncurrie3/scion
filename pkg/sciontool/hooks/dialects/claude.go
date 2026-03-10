@@ -6,7 +6,7 @@ Copyright 2025 The Scion Authors.
 package dialects
 
 import (
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks"
 )
 
 // ClaudeDialect parses Claude Code hook events.

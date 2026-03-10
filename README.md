@@ -36,7 +36,7 @@ See the **[Installation Guide](docs-site/src/content/docs/install.md)** for deta
 
 Quick start from source:
 ```bash
-go install github.com/ptone/scion-agent/cmd/scion@latest
+go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest
 ```
 
 ## Quick Start

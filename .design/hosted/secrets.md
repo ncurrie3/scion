@@ -291,7 +291,7 @@ import (
     secretmanager "cloud.google.com/go/secretmanager/apiv1"
     smpb "cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 
-    "github.com/ptone/scion-agent/pkg/secret"
+    "github.com/GoogleCloudPlatform/scion/pkg/secret"
 )
 
 // GCPStore implements secret.SecretBackend using GCP Secret Manager.

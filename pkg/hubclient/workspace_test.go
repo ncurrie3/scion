@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/transfer"
+	"github.com/GoogleCloudPlatform/scion/pkg/transfer"
 )
 
 func TestWorkspaceSyncFrom(t *testing.T) {

@@ -28,10 +28,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/apiclient"
-	"github.com/ptone/scion-agent/pkg/brokercredentials"
-	"github.com/ptone/scion-agent/pkg/runtime"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/brokercredentials"
+	"github.com/GoogleCloudPlatform/scion/pkg/runtime"
 )
 
 // makeTestCreds creates BrokerCredentials with a base64-encoded secret key.

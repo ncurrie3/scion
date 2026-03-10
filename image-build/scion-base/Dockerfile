@@ -41,8 +41,8 @@ COPY web/*.go ./web/
 # VCS stamping is disabled since .git is not in the build context;
 # commit info is passed explicitly via the GIT_COMMIT build arg
 RUN BUILD_TIME="${BUILD_TIME:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}" && \
-    SCION_PKG="github.com/ptone/scion-agent/pkg/version" && \
-    SCIONTOOL_PKG="github.com/ptone/scion-agent/cmd/sciontool/commands" && \
+    SCION_PKG="github.com/GoogleCloudPlatform/scion/pkg/version" && \
+    SCIONTOOL_PKG="github.com/GoogleCloudPlatform/scion/cmd/sciontool/commands" && \
     SCION_LDFLAGS="-s -w -X ${SCION_PKG}.BuildTime=${BUILD_TIME}" && \
     SCIONTOOL_LDFLAGS="-s -w -X ${SCIONTOOL_PKG}.BuildTime=${BUILD_TIME}" && \
     if [ -n "${GIT_COMMIT}" ]; then \

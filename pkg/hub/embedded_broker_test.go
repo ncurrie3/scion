@@ -24,7 +24,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 func TestIsEmbeddedBroker(t *testing.T) {

@@ -11,11 +11,11 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent/accesspolicy"
-	"github.com/ptone/scion-agent/pkg/ent/agent"
-	"github.com/ptone/scion-agent/pkg/ent/group"
-	"github.com/ptone/scion-agent/pkg/ent/policybinding"
-	"github.com/ptone/scion-agent/pkg/ent/user"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/accesspolicy"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/agent"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/group"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/policybinding"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/user"
 )
 
 // PolicyBindingCreate is the builder for creating a PolicyBinding entity.

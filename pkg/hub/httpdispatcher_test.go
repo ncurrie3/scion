@@ -26,11 +26,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/messages"
-	"github.com/ptone/scion-agent/pkg/store"
-	"github.com/ptone/scion-agent/pkg/store/sqlite"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store/sqlite"
 )
 
 // createTestStore creates an in-memory SQLite store for testing.

@@ -23,8 +23,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/store"
-	"github.com/ptone/scion-agent/pkg/util/logging"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/util/logging"
 )
 
 // handleAgentCloudLogs handles GET /api/v1/agents/{id}/cloud-logs

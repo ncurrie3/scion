@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
 )
 
 // SlackChannel delivers notifications via a Slack incoming webhook.

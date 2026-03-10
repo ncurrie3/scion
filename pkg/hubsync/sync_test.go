@@ -26,8 +26,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/config"
-	"github.com/ptone/scion-agent/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 func TestEnsureHubReady_GlobalFallbackWithHubEnabled(t *testing.T) {

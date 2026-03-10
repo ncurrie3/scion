@@ -17,7 +17,7 @@ package cmd
 import (
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
 	"github.com/stretchr/testify/assert"
 )
 

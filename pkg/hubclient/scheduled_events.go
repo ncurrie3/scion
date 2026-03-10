@@ -20,7 +20,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // ScheduledEventService handles scheduled event operations scoped to a grove.

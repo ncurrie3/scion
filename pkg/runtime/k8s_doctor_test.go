@@ -23,7 +23,7 @@ import (
 	"k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
 
-	"github.com/ptone/scion-agent/pkg/k8s"
+	"github.com/GoogleCloudPlatform/scion/pkg/k8s"
 )
 
 func TestRunDiagnostics_BasicChecks(t *testing.T) {

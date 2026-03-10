@@ -25,8 +25,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/hubclient"
-	"github.com/ptone/scion-agent/pkg/transfer"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/transfer"
 )
 
 // HubConnectivityError indicates the Hub is unreachable.

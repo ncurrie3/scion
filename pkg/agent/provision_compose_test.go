@@ -21,7 +21,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/config"
+	"github.com/GoogleCloudPlatform/scion/pkg/config"
 )
 
 // setupCompositionTest creates a standard test environment with HOME, global .scion dir,

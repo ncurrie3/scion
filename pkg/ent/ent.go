@@ -12,13 +12,13 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
-	"github.com/ptone/scion-agent/pkg/ent/accesspolicy"
-	"github.com/ptone/scion-agent/pkg/ent/agent"
-	"github.com/ptone/scion-agent/pkg/ent/group"
-	"github.com/ptone/scion-agent/pkg/ent/groupmembership"
-	"github.com/ptone/scion-agent/pkg/ent/grove"
-	"github.com/ptone/scion-agent/pkg/ent/policybinding"
-	"github.com/ptone/scion-agent/pkg/ent/user"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/accesspolicy"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/agent"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/group"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/groupmembership"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/grove"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/policybinding"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/user"
 )
 
 // ent aliases to avoid import conflicts in user's code.

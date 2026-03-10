@@ -23,8 +23,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/secret"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/secret"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // APIError represents a standardized error response.

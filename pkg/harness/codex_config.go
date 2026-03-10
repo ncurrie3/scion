@@ -21,7 +21,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 func (c *Codex) reconcileConfig(agentHome string, telemetry *api.TelemetryConfig, env map[string]string) error {

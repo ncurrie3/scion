@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/ptone/scion-agent/pkg/ent/accesspolicy"
-	"github.com/ptone/scion-agent/pkg/ent/predicate"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/accesspolicy"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/predicate"
 )
 
 // AccessPolicyDelete is the builder for deleting a AccessPolicy entity.

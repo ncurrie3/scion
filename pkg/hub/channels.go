@@ -20,7 +20,7 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/ptone/scion-agent/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
 )
 
 // NotificationChannel delivers notifications to external systems.

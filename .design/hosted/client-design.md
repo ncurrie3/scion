@@ -304,8 +304,8 @@ package hubclient
 import (
     "context"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
-    "github.com/ptone/scion-agent/pkg/store"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // Client is the interface for the Hub API client.
@@ -383,7 +383,7 @@ import (
     "net/http"
     "time"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // Option configures a Hub client.
@@ -441,7 +441,7 @@ package hubclient
 import (
     "context"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // AgentService handles agent operations.
@@ -552,7 +552,7 @@ package hubclient
 import (
     "context"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // GroveService handles grove operations.
@@ -664,7 +664,7 @@ package hubclient
 import (
     "context"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // RuntimeBrokerService handles runtime broker operations.
@@ -753,7 +753,7 @@ package hubclient
 import (
     "context"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // TemplateService handles template operations.
@@ -824,7 +824,7 @@ package hubclient
 import (
     "context"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // UserService handles user operations.
@@ -860,7 +860,7 @@ package hubclient
 import (
     "context"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // EnvService handles environment variable operations.
@@ -1280,8 +1280,8 @@ package brokerclient
 import (
     "context"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
-    "github.com/ptone/scion-agent/pkg/runtimebroker"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/runtimebroker"
 )
 
 // Client is the interface for the Runtime Broker API client.
@@ -1328,7 +1328,7 @@ import (
     "net/http"
     "time"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 // Option configures a Runtime Broker client.
@@ -1379,8 +1379,8 @@ package brokerclient
 import (
     "context"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
-    "github.com/ptone/scion-agent/pkg/runtimebroker"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/runtimebroker"
 )
 
 // AgentService handles agent operations on a runtime broker.
@@ -1509,8 +1509,8 @@ import (
     "errors"
     "fmt"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
-    "github.com/ptone/scion-agent/pkg/hubclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 func example(ctx context.Context, client hubclient.Client) {
@@ -1590,7 +1590,7 @@ import (
     "log"
     "time"
 
-    "github.com/ptone/scion-agent/pkg/hubclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 func main() {
@@ -1653,7 +1653,7 @@ import (
     "fmt"
     "log"
 
-    "github.com/ptone/scion-agent/pkg/hubclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 func main() {
@@ -1708,8 +1708,8 @@ import (
     "fmt"
     "log"
 
-    "github.com/ptone/scion-agent/pkg/brokerclient"
-    "github.com/ptone/scion-agent/pkg/runtimebroker"
+    "github.com/GoogleCloudPlatform/scion/pkg/brokerclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/runtimebroker"
 )
 
 // This example shows how the Hub would dispatch an agent creation
@@ -1750,7 +1750,7 @@ import (
     "os/signal"
     "syscall"
 
-    "github.com/ptone/scion-agent/pkg/brokerclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/brokerclient"
     "golang.org/x/term"
 )
 
@@ -1813,8 +1813,8 @@ import (
     "context"
     "fmt"
 
-    "github.com/ptone/scion-agent/pkg/apiclient"
-    "github.com/ptone/scion-agent/pkg/hubclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 func listAllAgents(ctx context.Context, client hubclient.Client, groveID string) ([]hubclient.Agent, error) {
@@ -1862,7 +1862,7 @@ import (
     "context"
     "testing"
 
-    "github.com/ptone/scion-agent/pkg/hubclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 // MockAgentService implements hubclient.AgentService for testing.
@@ -1911,7 +1911,7 @@ import (
     "net/http/httptest"
     "testing"
 
-    "github.com/ptone/scion-agent/pkg/hubclient"
+    "github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 func TestGetAgent(t *testing.T) {

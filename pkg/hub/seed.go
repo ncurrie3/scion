@@ -19,8 +19,8 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // seedDefaultPoliciesAndGroups creates the default hub-members group and

@@ -7,7 +7,7 @@ CONTAINER_DIR := ./.build/container
 INSTALL_DIR   := $(HOME)/.local/bin
 MAIN_PKG      := ./cmd/scion
 LDFLAGS            := $(shell ./hack/version.sh)
-SCIONTOOL_LDFLAGS  := $(shell ./hack/version.sh github.com/ptone/scion-agent/cmd/sciontool/commands)
+SCIONTOOL_LDFLAGS  := $(shell ./hack/version.sh github.com/GoogleCloudPlatform/scion/cmd/sciontool/commands)
 CONTAINER_OS  := linux
 CONTAINER_ARCH := $(shell if [ "$$(uname -m)" = "x86_64" ]; then echo amd64; else echo arm64; fi)
 

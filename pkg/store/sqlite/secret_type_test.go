@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 func TestSecretCRUDWithType(t *testing.T) {

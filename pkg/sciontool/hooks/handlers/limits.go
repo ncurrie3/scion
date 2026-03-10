@@ -13,9 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	state "github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks"
-	"github.com/ptone/scion-agent/pkg/sciontool/log"
+	state "github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/log"
 )
 
 // ExitCodeLimitsExceeded is the exit code used when an agent is stopped due to

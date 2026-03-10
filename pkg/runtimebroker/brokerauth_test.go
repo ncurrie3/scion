@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
 )
 
 func TestBrokerAuthMiddleware_Disabled(t *testing.T) {

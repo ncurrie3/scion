@@ -55,7 +55,7 @@ For Debian you may need to build from source, see the [git site](https://git-scm
 You can install Scion directly using `go install`:
 
 ```bash
-go install github.com/ptone/scion-agent/cmd/scion@latest
+go install github.com/GoogleCloudPlatform/scion/cmd/scion@latest
 ```
 
 Ensure your `$GOPATH/bin` (typically `~/go/bin`) is in your system `$PATH`.

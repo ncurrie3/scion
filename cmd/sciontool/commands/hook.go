@@ -14,12 +14,12 @@ import (
 
 	"github.com/spf13/cobra"
 
-	state "github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks"
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks/dialects"
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks/handlers"
-	"github.com/ptone/scion-agent/pkg/sciontool/log"
-	"github.com/ptone/scion-agent/pkg/sciontool/telemetry"
+	state "github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks/dialects"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks/handlers"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/log"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/telemetry"
 	otellog "go.opentelemetry.io/otel/log"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/trace"

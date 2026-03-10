@@ -20,7 +20,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 const readyPollInterval = 250 * time.Millisecond

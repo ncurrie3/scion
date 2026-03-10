@@ -8,7 +8,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent/predicate"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/predicate"
 )
 
 // ID filters vertices based on their ID field.

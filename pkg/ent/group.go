@@ -11,9 +11,9 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent/group"
-	"github.com/ptone/scion-agent/pkg/ent/grove"
-	"github.com/ptone/scion-agent/pkg/ent/user"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/group"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/grove"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/user"
 )
 
 // Group is the model entity for the Group schema.

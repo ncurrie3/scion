@@ -11,11 +11,11 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent/group"
-	"github.com/ptone/scion-agent/pkg/ent/groupmembership"
-	"github.com/ptone/scion-agent/pkg/ent/grove"
-	"github.com/ptone/scion-agent/pkg/ent/policybinding"
-	"github.com/ptone/scion-agent/pkg/ent/user"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/group"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/groupmembership"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/grove"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/policybinding"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/user"
 )
 
 // GroupCreate is the builder for creating a Group entity.

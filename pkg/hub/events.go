@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // EventPublisher defines the interface for publishing Hub events.

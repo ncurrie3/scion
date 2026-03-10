@@ -8,8 +8,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
-	"github.com/ptone/scion-agent/pkg/ent/agent"
-	"github.com/ptone/scion-agent/pkg/ent/predicate"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/agent"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/predicate"
 )
 
 // AgentDelete is the builder for deleting a Agent entity.

@@ -17,7 +17,7 @@ package hub
 import (
 	"context"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // Capabilities represents the set of actions a user can perform on a resource.

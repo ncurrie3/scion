@@ -20,12 +20,12 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent"
-	"github.com/ptone/scion-agent/pkg/ent/agent"
-	"github.com/ptone/scion-agent/pkg/ent/group"
-	"github.com/ptone/scion-agent/pkg/ent/groupmembership"
-	"github.com/ptone/scion-agent/pkg/ent/user"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/agent"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/group"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/groupmembership"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/user"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // GroupStore implements store.GroupStore using Ent ORM.

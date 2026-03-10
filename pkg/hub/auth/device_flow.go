@@ -21,7 +21,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
 )
 
 // DeviceFlowAuth handles the OAuth 2.0 Device Authorization Grant flow

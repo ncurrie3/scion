@@ -21,8 +21,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/ptone/scion-agent/pkg/api"
-	opencodeEmbeds "github.com/ptone/scion-agent/pkg/harness/opencode"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	opencodeEmbeds "github.com/GoogleCloudPlatform/scion/pkg/harness/opencode"
 )
 
 type OpenCode struct{}

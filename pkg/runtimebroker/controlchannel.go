@@ -27,8 +27,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
-	"github.com/ptone/scion-agent/pkg/wsprotocol"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/wsprotocol"
 )
 
 // ControlChannelConfig holds configuration for the control channel client.

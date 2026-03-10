@@ -19,7 +19,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 // Agent represents an agent record in the Hub database.

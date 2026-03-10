@@ -4,7 +4,7 @@ Copyright 2025 The Scion Authors.
 
 package dialects
 
-import "github.com/ptone/scion-agent/pkg/sciontool/hooks"
+import "github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks"
 
 // CodexDialect parses Codex notify payloads.
 // This provides a minimal registration point while Codex payloads evolve.

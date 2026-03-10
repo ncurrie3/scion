@@ -11,7 +11,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent/grove"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/grove"
 )
 
 // Grove is the model entity for the Grove schema.

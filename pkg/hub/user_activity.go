@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // UserActivityTracker records user last-seen timestamps with in-memory

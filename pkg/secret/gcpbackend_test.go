@@ -26,8 +26,8 @@ import (
 	"testing"
 
 	smpb "cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
-	"github.com/ptone/scion-agent/pkg/store"
-	"github.com/ptone/scion-agent/pkg/store/sqlite"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store/sqlite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

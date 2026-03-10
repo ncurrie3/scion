@@ -22,9 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/runtime"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/runtime"
 )
 
 func TestListEnrichesTemplateAndHarnessFromAgentInfo(t *testing.T) {

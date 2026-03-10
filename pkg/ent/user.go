@@ -11,8 +11,8 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/ent/schema"
-	"github.com/ptone/scion-agent/pkg/ent/user"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/schema"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/user"
 )
 
 // User is the model entity for the User schema.

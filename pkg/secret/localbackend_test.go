@@ -20,8 +20,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/store"
-	"github.com/ptone/scion-agent/pkg/store/sqlite"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store/sqlite"
 )
 
 func createTestStore(t *testing.T) store.SecretStore {

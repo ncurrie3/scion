@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/ptone/scion-agent/pkg/apiclient"
-	"github.com/ptone/scion-agent/pkg/messages"
-	"github.com/ptone/scion-agent/pkg/runtimebroker"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/runtimebroker"
 )
 
 // AgentService handles agent operations on a runtime broker.

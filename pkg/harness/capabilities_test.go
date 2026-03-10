@@ -17,7 +17,7 @@ package harness
 import (
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 func TestAdvancedCapabilitiesDefaults(t *testing.T) {

@@ -17,7 +17,7 @@ package runtime
 import (
 	"context"
 
-	"github.com/ptone/scion-agent/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
 )
 
 type MockRuntime struct {

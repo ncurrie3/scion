@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ptone/scion-agent/pkg/ent"
-	entuser "github.com/ptone/scion-agent/pkg/ent/user"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent"
+	entuser "github.com/GoogleCloudPlatform/scion/pkg/ent/user"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // CompositeStore wraps an existing store.Store and overrides group and policy

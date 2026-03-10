@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // AuthLoginRequest is the request body for /api/v1/auth/login.

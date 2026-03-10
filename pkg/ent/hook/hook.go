@@ -6,7 +6,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ptone/scion-agent/pkg/ent"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent"
 )
 
 // The AccessPolicyFunc type is an adapter to allow the use of ordinary

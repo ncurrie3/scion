@@ -26,7 +26,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

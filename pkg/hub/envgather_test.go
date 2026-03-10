@@ -24,9 +24,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/secret"
-	"github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/secret"
+	"github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // envGatherMockBrokerClient extends mockRuntimeBrokerClient with env-gather methods.

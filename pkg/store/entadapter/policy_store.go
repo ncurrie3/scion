@@ -18,12 +18,12 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/ptone/scion-agent/pkg/ent"
-	"github.com/ptone/scion-agent/pkg/ent/accesspolicy"
-	"github.com/ptone/scion-agent/pkg/ent/policybinding"
-	"github.com/ptone/scion-agent/pkg/ent/predicate"
-	entschema "github.com/ptone/scion-agent/pkg/ent/schema"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/accesspolicy"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/policybinding"
+	"github.com/GoogleCloudPlatform/scion/pkg/ent/predicate"
+	entschema "github.com/GoogleCloudPlatform/scion/pkg/ent/schema"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 // PolicyStore implements store.PolicyStore using Ent ORM.

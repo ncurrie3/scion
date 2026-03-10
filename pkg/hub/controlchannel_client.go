@@ -25,9 +25,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/messages"
-	"github.com/ptone/scion-agent/pkg/wsprotocol"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/wsprotocol"
 )
 
 // ControlChannelBrokerClient implements RuntimeBrokerClient by tunneling requests

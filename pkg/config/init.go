@@ -25,8 +25,8 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/ptone/scion-agent/pkg/api"
-	"github.com/ptone/scion-agent/pkg/util"
+	"github.com/GoogleCloudPlatform/scion/pkg/api"
+	"github.com/GoogleCloudPlatform/scion/pkg/util"
 	"gopkg.in/yaml.v3"
 )
 

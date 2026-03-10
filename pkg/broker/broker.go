@@ -26,7 +26,7 @@ package broker
 import (
 	"context"
 
-	"github.com/ptone/scion-agent/pkg/messages"
+	"github.com/GoogleCloudPlatform/scion/pkg/messages"
 )
 
 // MessageBroker abstracts message routing and delivery.

@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks"
 )
 
 // PromptHandler saves the initial user prompt to a file.

@@ -21,8 +21,8 @@ import (
 	"log/slog"
 	"testing"
 
-	"github.com/ptone/scion-agent/pkg/secret"
-	"github.com/ptone/scion-agent/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/secret"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
 func TestResolveSecrets(t *testing.T) {

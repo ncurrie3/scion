@@ -22,10 +22,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ptone/scion-agent/pkg/brokercredentials"
-	"github.com/ptone/scion-agent/pkg/hubclient"
-	"github.com/ptone/scion-agent/pkg/templatecache"
-	"github.com/ptone/scion-agent/pkg/util/logging"
+	"github.com/GoogleCloudPlatform/scion/pkg/brokercredentials"
+	"github.com/GoogleCloudPlatform/scion/pkg/hubclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/templatecache"
+	"github.com/GoogleCloudPlatform/scion/pkg/util/logging"
 )
 
 // ConnectionStatus represents the state of a hub connection.

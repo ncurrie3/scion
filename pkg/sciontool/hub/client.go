@@ -30,7 +30,7 @@ import (
 	"sync"
 	"time"
 
-	state "github.com/ptone/scion-agent/pkg/agent/state"
+	state "github.com/GoogleCloudPlatform/scion/pkg/agent/state"
 )
 
 const (

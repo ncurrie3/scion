@@ -31,11 +31,11 @@ import (
 	"time"
 
 	"github.com/gorilla/sessions"
-	"github.com/ptone/scion-agent/pkg/apiclient"
-	"github.com/ptone/scion-agent/pkg/store"
-	"github.com/ptone/scion-agent/pkg/util/logging"
-	"github.com/ptone/scion-agent/pkg/version"
-	"github.com/ptone/scion-agent/web"
+	"github.com/GoogleCloudPlatform/scion/pkg/apiclient"
+	"github.com/GoogleCloudPlatform/scion/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/util/logging"
+	"github.com/GoogleCloudPlatform/scion/pkg/version"
+	"github.com/GoogleCloudPlatform/scion/web"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )

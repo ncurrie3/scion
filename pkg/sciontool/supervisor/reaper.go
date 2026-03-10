@@ -12,7 +12,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/ptone/scion-agent/pkg/sciontool/log"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/log"
 )
 
 // snapshotProcessNames reads process names from /proc for all current

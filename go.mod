@@ -1,4 +1,4 @@
-module github.com/ptone/scion-agent
+module github.com/GoogleCloudPlatform/scion
 
 go 1.25.4
 

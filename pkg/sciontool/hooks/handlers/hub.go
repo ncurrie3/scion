@@ -11,10 +11,10 @@ import (
 	"path/filepath"
 	"time"
 
-	state "github.com/ptone/scion-agent/pkg/agent/state"
-	"github.com/ptone/scion-agent/pkg/sciontool/hooks"
-	"github.com/ptone/scion-agent/pkg/sciontool/hub"
-	"github.com/ptone/scion-agent/pkg/sciontool/log"
+	state "github.com/GoogleCloudPlatform/scion/pkg/agent/state"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hooks"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/hub"
+	"github.com/GoogleCloudPlatform/scion/pkg/sciontool/log"
 )
 
 // HubHandler sends status updates to the Scion Hub.
