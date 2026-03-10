@@ -27,7 +27,7 @@ INSTANCE_NAME="scion-demo"
 ZONE=${ZONE:-"us-central1-a"}
 PROJECT_ID=${PROJECT_ID:-"deploy-demo-test"}
 DOMAIN="hub.demo.scion-ai.dev"
-REPO_DIR="/home/scion/scion-agent"
+REPO_DIR="/home/scion/scion"
 SCION_BIN="/usr/local/bin/scion"
 RESET_DB=false
 FULL_DEPLOY=false
@@ -292,21 +292,21 @@ gcloud compute ssh "${INSTANCE_NAME}" --zone="${ZONE}" --command '
     echo ""
     echo "==> Pulling latest code..."
     PULL_START=$SECONDS
-    sudo -u scion sh -c "cd /home/scion/scion-agent && git pull"
+    sudo -u scion sh -c "cd /home/scion/scion && git pull"
     echo "  -> Pull took $(( SECONDS - PULL_START ))s"
 
     # Build web assets
     echo ""
     echo "==> Building web assets..."
     WEB_START=$SECONDS
-    sudo -u scion sh -c "cd /home/scion/scion-agent && make web"
+    sudo -u scion sh -c "cd /home/scion/scion && make web"
     echo "  -> Web build took $(( SECONDS - WEB_START ))s"
 
     # Build binary
     echo ""
     echo "==> Building scion binary..."
     BUILD_START=$SECONDS
-    sudo -u scion sh -c "cd /home/scion/scion-agent && /usr/local/go/bin/go build -o scion ./cmd/scion"
+    sudo -u scion sh -c "cd /home/scion/scion && /usr/local/go/bin/go build -o scion ./cmd/scion"
     echo "  -> Binary build took $(( SECONDS - BUILD_START ))s"
 
     # Configure GKE credentials if full deploy
@@ -333,7 +333,7 @@ gcloud compute ssh "${INSTANCE_NAME}" --zone="${ZONE}" --command '
 
     # Install binary
     echo "  -> Installing binary..."
-    sudo mv /home/scion/scion-agent/scion /usr/local/bin/scion
+    sudo mv /home/scion/scion/scion /usr/local/bin/scion
     sudo chmod +x /usr/local/bin/scion
 
     '"${FULL_POST_INSTALL_COMMANDS}"'

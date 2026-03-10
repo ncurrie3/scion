@@ -79,11 +79,11 @@ gcloud compute ssh "${INSTANCE_NAME}" \
         # Add github.com to known_hosts to avoid interactive prompt
         sudo -u scion sh -c 'ssh-keyscan github.com >> /home/scion/.ssh/known_hosts'
         
-        if [ ! -d \"/home/scion/scion-agent\" ]; then
+        if [ ! -d \"/home/scion/scion\" ]; then
             echo \"Cloning git@github.com:${REPO}.git...\"
-            sudo -u scion git clone \"git@github.com:${REPO}.git\" /home/scion/scion-agent
+            sudo -u scion git clone \"git@github.com:${REPO}.git\" /home/scion/scion
         else
-            echo \"Directory /home/scion/scion-agent already exists, skipping clone.\"
+            echo \"Directory /home/scion/scion already exists, skipping clone.\"
         fi
         
         echo \"=== Repository Setup Complete ===\"
