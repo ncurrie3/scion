@@ -1,7 +1,7 @@
 # Grove Shared Directories
 
 ## Status
-**Proposed** | March 2026
+**Phase 1 Implemented** | March 2026
 
 ## Problem Statement
 
@@ -143,7 +143,7 @@ Inject `SCION_VOLUMES=/scion-volumes` into agent environment so agents and scrip
 
 ## Implementation Approach
 
-### Phase 1: Core Implementation
+### Phase 1: Core Implementation (Complete)
 
 #### 1. Config Changes
 
