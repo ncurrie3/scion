@@ -832,21 +832,42 @@ func gitCloneWorkspace(uid, gid int) error {
 		hubCancel()
 	}
 
-	log.Info("Cloning repository %s (branch: %s, depth: %s)", normalizedURL, branch, depthStr)
-
 	// Build authenticated URL (never log this)
 	authURL := buildAuthenticatedURL(cloneURL, token)
 
-	// Run git clone
-	cloneArgs := []string{"clone", "--depth", depthStr, "--branch", branch, authURL, workspacePath}
-	cmd := exec.Command("git", cloneArgs...)
-	setCredential(cmd)
-	var stderr bytes.Buffer
-	cmd.Stderr = &stderr
+	// Determine the agent feature branch name early so we can try cloning it.
+	agentBranch := os.Getenv("SCION_AGENT_BRANCH")
 
-	if err := cmd.Run(); err != nil {
-		errOutput := sanitizeGitOutput(stderr.String(), token)
-		return fmt.Errorf("git clone failed: %s (check that GITHUB_TOKEN is set and has Contents read access)", errOutput)
+	// Clone strategy: if an agent branch is specified, try cloning that branch
+	// from origin first (it may already exist as a remote branch). If that fails,
+	// fall back to cloning the default branch (usually main).
+	clonedBranch := ""
+	if agentBranch != "" && agentBranch != branch {
+		log.Info("Attempting to clone repository %s (branch: %s, depth: %s)", normalizedURL, agentBranch, depthStr)
+		cloneArgs := []string{"clone", "--depth", depthStr, "--branch", agentBranch, authURL, workspacePath}
+		tryCmd := exec.Command("git", cloneArgs...)
+		setCredential(tryCmd)
+		if err := tryCmd.Run(); err == nil {
+			clonedBranch = agentBranch
+			log.Info("Successfully cloned agent branch %s from origin", agentBranch)
+		} else {
+			log.Info("Agent branch %s not found on origin, falling back to %s", agentBranch, branch)
+		}
+	}
+
+	if clonedBranch == "" {
+		log.Info("Cloning repository %s (branch: %s, depth: %s)", normalizedURL, branch, depthStr)
+		cloneArgs := []string{"clone", "--depth", depthStr, "--branch", branch, authURL, workspacePath}
+		cmd := exec.Command("git", cloneArgs...)
+		setCredential(cmd)
+		var stderr bytes.Buffer
+		cmd.Stderr = &stderr
+
+		if err := cmd.Run(); err != nil {
+			errOutput := sanitizeGitOutput(stderr.String(), token)
+			return fmt.Errorf("git clone failed: %s (check that GITHUB_TOKEN is set and has Contents read access)", errOutput)
+		}
+		clonedBranch = branch
 	}
 
 	// Configure git identity
@@ -872,44 +893,46 @@ func gitCloneWorkspace(uid, gid int) error {
 		return fmt.Errorf("failed to configure git credential helper: %w", err)
 	}
 
-	// Determine the agent feature branch name.
-	// Priority: SCION_AGENT_BRANCH env var > default "scion/<agentName>"
-	branchName := os.Getenv("SCION_AGENT_BRANCH")
+	// Resolve the agent feature branch name.
+	// Priority: SCION_AGENT_BRANCH env var (read earlier) > default "scion/<agentName>"
+	branchName := agentBranch
 	if branchName == "" {
 		branchName = "scion/" + agentName
 	}
 
-	// Try to check out the branch. It may exist locally (from clone) or
-	// remotely (needs fetch). If neither, create a new branch.
-	checked := false
+	// If we already cloned the agent branch directly, we're on it — skip checkout.
+	// Otherwise, try to check out the branch locally, fetch from origin, or create it.
+	if clonedBranch != branchName {
+		checked := false
 
-	// 1. Try local checkout (works if branch matches the cloned branch)
-	checkoutCmd := exec.Command("git", "-C", workspacePath, "checkout", branchName)
-	setCredential(checkoutCmd)
-	if err := checkoutCmd.Run(); err == nil {
-		checked = true
-	}
+		// 1. Try local checkout (works if branch matches the cloned branch)
+		checkoutCmd := exec.Command("git", "-C", workspacePath, "checkout", branchName)
+		setCredential(checkoutCmd)
+		if err := checkoutCmd.Run(); err == nil {
+			checked = true
+		}
 
-	// 2. Try fetching the branch from origin (shallow clone may not have it)
-	if !checked {
-		fetchCmd := exec.Command("git", "-C", workspacePath, "fetch", "origin", branchName)
-		setCredential(fetchCmd)
-		if err := fetchCmd.Run(); err == nil {
-			// Branch exists on remote — check it out tracking origin
-			trackCmd := exec.Command("git", "-C", workspacePath, "checkout", "-b", branchName, "origin/"+branchName)
-			setCredential(trackCmd)
-			if err := trackCmd.Run(); err == nil {
-				checked = true
+		// 2. Try fetching the branch from origin (shallow clone may not have it)
+		if !checked {
+			fetchCmd := exec.Command("git", "-C", workspacePath, "fetch", "origin", branchName)
+			setCredential(fetchCmd)
+			if err := fetchCmd.Run(); err == nil {
+				// Branch exists on remote — check it out tracking origin
+				trackCmd := exec.Command("git", "-C", workspacePath, "checkout", "-b", branchName, "origin/"+branchName)
+				setCredential(trackCmd)
+				if err := trackCmd.Run(); err == nil {
+					checked = true
+				}
 			}
 		}
-	}
 
-	// 3. Branch doesn't exist anywhere — create it
-	if !checked {
-		createCmd := exec.Command("git", "-C", workspacePath, "checkout", "-b", branchName)
-		setCredential(createCmd)
-		if err := createCmd.Run(); err != nil {
-			return fmt.Errorf("failed to create branch %s: %w", branchName, err)
+		// 3. Branch doesn't exist anywhere — create it
+		if !checked {
+			createCmd := exec.Command("git", "-C", workspacePath, "checkout", "-b", branchName)
+			setCredential(createCmd)
+			if err := createCmd.Run(); err != nil {
+				return fmt.Errorf("failed to create branch %s: %w", branchName, err)
+			}
 		}
 	}
 
