@@ -290,7 +290,10 @@ func (s *Server) buildStartContext(ctx context.Context, in startContextInputs) (
 			env["SCION_AGENT_BRANCH"] = in.Config.Branch
 		}
 		opts.Workspace = ""
-		opts.GrovePath = ""
+		// Keep opts.GrovePath so that ProvisionAgent can resolve the correct
+		// agent directory (e.g. ~/.scion/groves/<slug>/) instead of falling
+		// back to the global grove. The git-clone check in ProvisionAgent
+		// runs before the worktree logic, so no worktree will be created.
 		opts.GitClone = gc
 		if s.config.Debug {
 			s.agentLifecycleLog.Debug("Git clone mode enabled", "agent_id", in.AgentID,

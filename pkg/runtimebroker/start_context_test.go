@@ -242,12 +242,13 @@ func TestBuildStartContext_GitClone(t *testing.T) {
 	if sc.Opts.Env["SCION_AGENT_BRANCH"] != "feature-1" {
 		t.Errorf("expected SCION_AGENT_BRANCH='feature-1', got %q", sc.Opts.Env["SCION_AGENT_BRANCH"])
 	}
-	// Git clone mode should clear workspace and grove path
+	// Git clone mode should clear workspace but preserve grove path
+	// so ProvisionAgent can resolve the correct agent directory.
 	if sc.Opts.Workspace != "" {
 		t.Errorf("expected Workspace to be empty in git clone mode, got %q", sc.Opts.Workspace)
 	}
-	if sc.Opts.GrovePath != "" {
-		t.Errorf("expected GrovePath to be empty in git clone mode, got %q", sc.Opts.GrovePath)
+	if sc.Opts.GrovePath != "/some/path" {
+		t.Errorf("expected GrovePath to be preserved in git clone mode, got %q", sc.Opts.GrovePath)
 	}
 }
 

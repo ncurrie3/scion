@@ -1213,11 +1213,13 @@ func TestHTTPAgentDispatcher_DispatchAgentStart_HubNativeGrove(t *testing.T) {
 	}
 }
 
-func TestHTTPAgentDispatcher_DispatchAgentStart_GroveSlugNotSetWhenHasGitRemote(t *testing.T) {
+func TestHTTPAgentDispatcher_DispatchAgentStart_GroveSlugSetForGitRemoteWithoutLocalPath(t *testing.T) {
 	ctx := context.Background()
 	memStore := createTestStore(t)
 
-	// Create a grove with a git remote (not hub-native)
+	// Create a grove with a git remote but no local provider path.
+	// The broker needs the groveSlug to resolve agent directories under
+	// ~/.scion/groves/<slug>/ instead of falling back to the global grove.
 	grove := &store.Grove{
 		ID:        "grove-git",
 		Name:      "Git Grove",
@@ -1258,9 +1260,10 @@ func TestHTTPAgentDispatcher_DispatchAgentStart_GroveSlugNotSetWhenHasGitRemote(
 	if !mockClient.startCalled {
 		t.Fatal("expected StartAgent to be called")
 	}
-	// Grove has a git remote, so groveSlug should NOT be set
-	if mockClient.lastGroveSlug != "" {
-		t.Errorf("expected empty groveSlug for grove with git remote, got %q", mockClient.lastGroveSlug)
+	// Git-remote grove without a local provider path should have groveSlug set
+	// so the broker resolves agent dirs under ~/.scion/groves/<slug>/
+	if mockClient.lastGroveSlug != "git-grove" {
+		t.Errorf("expected groveSlug='git-grove' for git grove without local path, got %q", mockClient.lastGroveSlug)
 	}
 }
 
@@ -1866,11 +1869,11 @@ func TestHTTPAgentDispatcher_DispatchAgentCreate_PropagatesGroveSlug_HubNative(t
 	}
 }
 
-func TestHTTPAgentDispatcher_DispatchAgentCreate_NoGroveSlug_GitGrove(t *testing.T) {
+func TestHTTPAgentDispatcher_DispatchAgentCreate_GroveSlugSet_GitGrove(t *testing.T) {
 	ctx := context.Background()
 	memStore := createTestStore(t)
 
-	// Create a git-backed grove (has GitRemote)
+	// Create a git-backed grove (has GitRemote) without a local provider path.
 	grove := &store.Grove{
 		ID:        "grove-git",
 		Name:      "Git Grove",
@@ -1914,9 +1917,10 @@ func TestHTTPAgentDispatcher_DispatchAgentCreate_NoGroveSlug_GitGrove(t *testing
 	if !mockClient.createCalled {
 		t.Fatal("expected CreateAgent to be called")
 	}
-	// Git-backed groves should NOT have GroveSlug set
-	if mockClient.lastCreateReq.GroveSlug != "" {
-		t.Errorf("expected empty GroveSlug for git-backed grove, got '%s'", mockClient.lastCreateReq.GroveSlug)
+	// Git-backed groves without a local provider path should have GroveSlug set
+	// so the broker resolves agent dirs under ~/.scion/groves/<slug>/
+	if mockClient.lastCreateReq.GroveSlug != "git-grove" {
+		t.Errorf("expected GroveSlug='git-grove' for git-backed grove without local path, got '%s'", mockClient.lastCreateReq.GroveSlug)
 	}
 }
 

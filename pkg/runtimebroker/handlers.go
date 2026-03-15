@@ -550,7 +550,9 @@ func (s *Server) createAgent(w http.ResponseWriter, r *http.Request) {
 		}
 
 		opts.Workspace = workspaceDir
-		opts.GrovePath = "" // Prevent git worktree logic in ProvisionAgent
+		// Keep opts.GrovePath so that ProvisionAgent resolves the correct
+		// agent directory. The explicit workspace takes precedence over the
+		// worktree logic in ProvisionAgent, so no worktree will be created.
 
 		// Write a .scion grove marker into the workspace so in-container CLI
 		// can discover the grove context and use the Hub API.

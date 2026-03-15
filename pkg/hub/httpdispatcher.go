@@ -413,9 +413,12 @@ func (d *HTTPAgentDispatcher) resolveDispatchGroveInfo(ctx context.Context, agen
 			}
 		}
 	}
-	// If no provider path was found and the grove has no git remote,
-	// treat as hub-native: let the broker resolve the path via slug.
-	if info.grovePath == "" && grove.GitRemote == "" {
+	// If no provider path was found, let the broker resolve the path via
+	// slug. This applies to both hub-native groves (no git remote) and
+	// git-anchored groves — the broker needs a grove identity to create
+	// agent directories under ~/.scion/groves/<slug>/ rather than falling
+	// back to the global grove.
+	if info.grovePath == "" {
 		info.groveSlug = grove.Slug
 	}
 	return info
