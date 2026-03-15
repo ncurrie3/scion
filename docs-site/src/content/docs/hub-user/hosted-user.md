@@ -56,6 +56,24 @@ hub:
   grove_id: "uuid-of-the-grove"
 ```
 
+### Workspace Mode Change for Git Projects
+
+Once a git project is linked to a Hub, **all agents started via the Hub use HTTPS clone-based provisioning** rather than local Git worktrees — even if the broker machine already has the repository on disk.
+
+This means:
+- A `GITHUB_TOKEN` with at least **Contents: Read** access is required. Set it as a secret or ensure it is in your local environment:
+  ```bash
+  scion hub secret set --grove my-project GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+  ```
+- SSH credentials are not used for workspace provisioning when Hub mode is active.
+- The CLI will confirm the clone path when starting agents:
+  ```
+  Using hub, cloning repo https://github.com/org/repo.git
+  ```
+- To use local worktrees instead, run with `--no-hub` or disable hub integration temporarily.
+
+For full details on workspace strategies, see [About Workspaces](../advanced-local/workspace/).
+
 ## Using Remote Infrastructure
 
 With the Hub connected, you can dispatch agents to **Runtime Brokers** managed by your team, rather than running them on your local laptop.

@@ -73,12 +73,25 @@ The `offline` activity status occurs when an agent heartbeat has not been heard 
 
  Because an agent through its template can contain home folder content, env var definitions, and custom mounts that collectively exposes all configuration available to the harness (e.g., gemini-cli) scion-agents are not limited by the constraints of a harness' built-in sub-agent feature. While they are acting as sub-agents from the point-of-view of the Scion tool user-as-orchestrator, they are full agents in their capabilities.
 
-### Workspace Strategy (Git Worktrees)
-To enable multiple agents to work on the same codebase simultaneously without conflicts, Scion uses **Git Worktrees**.
-- When an agent starts, Scion creates a new git worktree for it (usually in `../.scion_worktrees/`).
-- This worktree creates a dedicated branch for the agent.
+### Workspace Strategy
+
+Scion uses one of two strategies to give each agent an isolated git workspace, depending on whether a Hub is in use.
+
+**Local mode — Git Worktrees:**
+When running without a Hub, Scion uses [Git Worktrees](https://git-scm.com/docs/git-worktree) for isolation.
+- A new worktree is created at `../.scion_worktrees/<grove>/<agent>` with a dedicated branch.
 - The worktree is mounted into the agent's container as `/workspace`.
-- This ensures that agents operate on the same repository history but have independent working directories.
+- Agents operate on the same repository history but have independent working directories.
+- Work is merged back to the main branch manually (e.g., `git merge <agent-branch>`).
+
+**Hub mode — HTTPS Clone:**
+When a Hub is enabled, all git-based groves (including locally linked ones) use clone-based provisioning instead of worktrees.
+- The broker injects `SCION_GIT_CLONE_URL`, `SCION_GIT_BRANCH`, and a `GITHUB_TOKEN` into the container.
+- `sciontool init` inside the container clones the repo over HTTPS and checks out a `scion/<agent-name>` branch.
+- SSH credentials on the host are not used; a `GITHUB_TOKEN` is required.
+- This strategy is consistent across all broker machines, whether or not the repo exists locally.
+
+This distinction means a grove that was previously used in local mode will switch to clone-based provisioning once it is linked to a Hub. See the [About Workspaces](./advanced-local/workspace/) guide for details.
 
 ### Resource Isolation
 Scion enforces strict isolation between agents to prevent interference and cross-contamination of credentials or data.

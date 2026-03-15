@@ -79,18 +79,18 @@ In non-git projects (where no `.git` directory is found):
 
 ---
 
-## 4. Hub-First Remote Workspaces
+## 4. Hub-Managed Workspaces
 
-When working with a Scion Hub, you can create remote workspaces that decouple agent execution from your local machine. The Hub supports two types of remote workspaces:
+When a Scion Hub is enabled, workspace strategy changes depending on the grove type. The Hub supports three types of remote workspaces:
 
-### Hub-Native Groves
-Hub-Native groves allow you to create project workspaces directly through the Hub API and Web Dashboard **without an external Git repository**. 
+### Hub-Native Groves (no git repository)
+Hub-Native groves allow you to create project workspaces directly through the Hub API and Web Dashboard **without an external Git repository**.
 - The Hub automatically initializes a seeded `.scion` structure.
 - Workspace files are managed locally by the Hub and its distributed runtime brokers.
 - You can directly download individual workspace files or generate ZIP archives of entire groves using the Hub API or Web Dashboard, making it easy to export your data.
 
-### Git Groves
-Groves can also be created directly from a remote git repository URL. In this mode, the agent's container **clones the repository at startup**.
+### Git Groves (clone-based, Hub-managed)
+Groves created from a remote git repository URL use **clone-based provisioning**: the agent's container clones the repository over HTTPS at startup.
 
 ```bash
 # Create a git grove from a URL (Hub-managed)
@@ -124,7 +124,35 @@ git fetch --unshallow
 | `SCION_GIT_BRANCH` | Branch to clone | `main` |
 | `SCION_GIT_DEPTH` | Clone depth | `1` |
 
-Authentication is handled via the `GITHUB_TOKEN` environment variable, which is injected from the grove's secrets.
+Authentication is handled via the `GITHUB_TOKEN` environment variable, injected from the grove's secrets or your local environment through the env-gather flow.
+
+### Linked Groves (clone-based, even when the repo is local)
+
+When you link an existing local git project to a Hub (`scion hub link`), the grove becomes **Hub-managed**. Once linked, **all agents started via the Hub use clone-based provisioning**, even if the broker machine already has the repository checked out locally.
+
+This is intentional: the Hub enforces a consistent, unambiguous workspace strategy for all git-based groves. Local worktrees are a local-mode feature only.
+
+**What this means in practice:**
+
+- **SSH credentials are not used** for workspace provisioning. Even if your machine has SSH keys configured for the repo, agents always clone via HTTPS using `GITHUB_TOKEN`.
+- **A `GITHUB_TOKEN` is required.** Set it as a grove or user secret on the Hub, or ensure it is present in your local environment (the env-gather flow will collect it):
+  ```bash
+  scion hub secret set --grove my-project GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+  ```
+- **The CLI will tell you** when this mode is in effect. When starting an agent via a Hub-linked git grove, you will see:
+  ```
+  Using hub, cloning repo https://github.com/org/repo.git
+    (Hub mode uses HTTPS clone with GITHUB_TOKEN; local worktrees are not used)
+  ```
+- **Merging agent work** is done via git push and pull request, not by merging worktrees back into your local checkout.
+
+To return to local worktree-based mode, disable hub integration:
+
+```bash
+scion hub disable
+# or run with --no-hub
+scion start my-agent --no-hub "fix the bug"
+```
 
 ---
 
