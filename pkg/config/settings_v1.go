@@ -131,6 +131,11 @@ func (vs *VersionedSettings) IsHubEnabled() bool {
 	return vs.Hub != nil && vs.Hub.Enabled != nil && *vs.Hub.Enabled
 }
 
+// IsHubLinked returns true if this grove has been explicitly linked to the Hub.
+func (vs *VersionedSettings) IsHubLinked() bool {
+	return vs.Hub != nil && vs.Hub.Linked != nil && *vs.Hub.Linked
+}
+
 // IsHubExplicitlyDisabled returns true if Hub integration is explicitly disabled.
 func (vs *VersionedSettings) IsHubExplicitlyDisabled() bool {
 	return vs.Hub != nil && vs.Hub.Enabled != nil && !*vs.Hub.Enabled
@@ -392,6 +397,7 @@ type V1CORSConfig struct {
 // Legacy fields (Token, APIKey, BrokerID, BrokerToken, LastSyncedAt) are removed.
 type V1HubClientConfig struct {
 	Enabled   *bool  `json:"enabled,omitempty" yaml:"enabled,omitempty" koanf:"enabled"`
+	Linked    *bool  `json:"linked,omitempty" yaml:"linked,omitempty" koanf:"linked"`
 	Endpoint  string `json:"endpoint,omitempty" yaml:"endpoint,omitempty" koanf:"endpoint"`
 	GroveID   string `json:"grove_id,omitempty" yaml:"grove_id,omitempty" koanf:"grove_id"`
 	LocalOnly *bool  `json:"local_only,omitempty" yaml:"local_only,omitempty" koanf:"local_only"`
@@ -1148,6 +1154,7 @@ func AdaptLegacySettings(legacy *Settings) (*VersionedSettings, []string) {
 	if legacy.Hub != nil {
 		vs.Hub = &V1HubClientConfig{
 			Enabled:   legacy.Hub.Enabled,
+			Linked:    legacy.Hub.Linked,
 			Endpoint:  legacy.Hub.Endpoint,
 			GroveID:   legacy.Hub.GroveID,
 			LocalOnly: legacy.Hub.LocalOnly,
@@ -1275,6 +1282,7 @@ func convertVersionedToLegacy(vs *VersionedSettings) *Settings {
 	if vs.Hub != nil {
 		s.Hub = &HubClientConfig{
 			Enabled:   vs.Hub.Enabled,
+			Linked:    vs.Hub.Linked,
 			Endpoint:  vs.Hub.Endpoint,
 			GroveID:   vs.Hub.GroveID,
 			LocalOnly: vs.Hub.LocalOnly,
@@ -1505,6 +1513,12 @@ func UpdateVersionedSetting(dir string, key string, value string) error {
 		}
 		enabled := value == "true"
 		vs.Hub.Enabled = &enabled
+	case "hub.linked":
+		if vs.Hub == nil {
+			vs.Hub = &V1HubClientConfig{}
+		}
+		linked := value == "true"
+		vs.Hub.Linked = &linked
 	case "hub.endpoint":
 		if vs.Hub == nil {
 			vs.Hub = &V1HubClientConfig{}
@@ -1595,6 +1609,14 @@ func GetVersionedSettingValue(vs *VersionedSettings, key string) (string, error)
 	case "hub.enabled":
 		if vs.Hub != nil && vs.Hub.Enabled != nil {
 			if *vs.Hub.Enabled {
+				return "true", nil
+			}
+			return "false", nil
+		}
+		return "", nil
+	case "hub.linked":
+		if vs.Hub != nil && vs.Hub.Linked != nil {
+			if *vs.Hub.Linked {
 				return "true", nil
 			}
 			return "false", nil

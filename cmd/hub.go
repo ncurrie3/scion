@@ -681,6 +681,14 @@ func printGroveContext(client hubclient.Client, grovePath string, isGlobal bool,
 		return
 	}
 
+	// If grove has not been explicitly linked via 'hub link', don't report as linked
+	if !settings.IsHubLinked() {
+		fmt.Printf("Linked: no\n")
+		fmt.Println()
+		fmt.Println("Run 'scion hub link' to link this grove with the Hub.")
+		return
+	}
+
 	// Check if grove is linked to the Hub
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -723,9 +731,9 @@ func printGroveContext(client hubclient.Client, grovePath string, isGlobal bool,
 	}
 
 	if linkedGrove == nil {
-		fmt.Printf("Linked: no\n")
+		fmt.Printf("Linked: no (grove not found on Hub)\n")
 		fmt.Println()
-		fmt.Println("Run 'scion hub link' to link this grove with the Hub.")
+		fmt.Println("Run 'scion hub link' to re-link this grove with the Hub.")
 		return
 	}
 
@@ -797,6 +805,12 @@ func getGroveContextJSON(client hubclient.Client, grovePath string, isGlobal boo
 	if !settings.IsHubEnabled() {
 		result["linked"] = false
 		result["unlinkedLocally"] = true
+		return result
+	}
+
+	// If grove has not been explicitly linked via 'hub link', report as not linked
+	if !settings.IsHubLinked() {
+		result["linked"] = false
 		return result
 	}
 
@@ -1965,9 +1979,12 @@ func runHubLink(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Enable Hub integration for this grove
+	// Enable Hub integration and mark as linked for this grove
 	if err := config.UpdateSetting(resolvedPath, "hub.enabled", "true", isGlobal); err != nil {
 		return fmt.Errorf("failed to enable hub: %w", err)
+	}
+	if err := config.UpdateSetting(resolvedPath, "hub.linked", "true", isGlobal); err != nil {
+		return fmt.Errorf("failed to save linked state: %w", err)
 	}
 
 	// Save endpoint if provided via flag
@@ -2165,9 +2182,12 @@ func runHubUnlink(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unlinking cancelled")
 	}
 
-	// Disable Hub integration and clear the hub grove ID
+	// Disable Hub integration, clear linked state and hub grove ID
 	if err := config.UpdateSetting(resolvedPath, "hub.enabled", "false", isGlobal); err != nil {
 		return fmt.Errorf("failed to disable hub: %w", err)
+	}
+	if err := config.UpdateSetting(resolvedPath, "hub.linked", "false", isGlobal); err != nil {
+		util.Debugf("Failed to clear hub.linked: %v", err)
 	}
 	if err := config.UpdateSetting(resolvedPath, "hub.groveId", "", isGlobal); err != nil {
 		util.Debugf("Failed to clear hub.groveId: %v", err)

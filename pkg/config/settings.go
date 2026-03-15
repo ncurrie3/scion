@@ -84,6 +84,11 @@ type HubClientConfig struct {
 	// Enabled indicates whether Hub integration is enabled.
 	// When enabled and configured, agent operations are routed through the Hub.
 	Enabled *bool `json:"enabled,omitempty" yaml:"enabled,omitempty" koanf:"enabled"`
+	// Linked indicates whether this grove has been explicitly linked to the Hub
+	// via 'scion hub link'. This is separate from Enabled: a grove can have hub
+	// enabled for routing without being linked (status should not report linked
+	// until the user explicitly runs 'hub link').
+	Linked *bool `json:"linked,omitempty" yaml:"linked,omitempty" koanf:"linked"`
 	// LocalOnly indicates that this grove should operate in local-only mode.
 	// When set to true, Hub sync checks will error with guidance to use --no-hub.
 	// This is different from Enabled=false: LocalOnly=true means Hub IS configured
@@ -646,6 +651,12 @@ func UpdateSetting(grovePath string, key string, value string, global bool) erro
 		}
 		enabled := value == "true"
 		current.Hub.Enabled = &enabled
+	case "hub.linked":
+		if current.Hub == nil {
+			current.Hub = &HubClientConfig{}
+		}
+		linked := value == "true"
+		current.Hub.Linked = &linked
 	case "hub.local_only":
 		if current.Hub == nil {
 			current.Hub = &HubClientConfig{}
@@ -774,6 +785,14 @@ func GetSettingValue(s *Settings, key string) (string, error) {
 			return "false", nil
 		}
 		return "", nil
+	case "hub.linked":
+		if s.Hub != nil && s.Hub.Linked != nil {
+			if *s.Hub.Linked {
+				return "true", nil
+			}
+			return "false", nil
+		}
+		return "", nil
 	case "hub.local_only":
 		if s.Hub != nil && s.Hub.LocalOnly != nil {
 			if *s.Hub.LocalOnly {
@@ -829,6 +848,13 @@ func GetSettingsMap(s *Settings) map[string]string {
 				m["hub.enabled"] = "true"
 			} else {
 				m["hub.enabled"] = "false"
+			}
+		}
+		if s.Hub.Linked != nil {
+			if *s.Hub.Linked {
+				m["hub.linked"] = "true"
+			} else {
+				m["hub.linked"] = "false"
 			}
 		}
 		if s.Hub.LocalOnly != nil {
@@ -897,6 +923,12 @@ func (s *Settings) IsHubConfigured() bool {
 // Returns false if not configured or explicitly disabled.
 func (s *Settings) IsHubEnabled() bool {
 	return s.Hub != nil && s.Hub.Enabled != nil && *s.Hub.Enabled
+}
+
+// IsHubLinked returns true if this grove has been explicitly linked to the Hub
+// via 'scion hub link'. A grove can be hub-enabled without being linked.
+func (s *Settings) IsHubLinked() bool {
+	return s.Hub != nil && s.Hub.Linked != nil && *s.Hub.Linked
 }
 
 // IsHubExplicitlyDisabled returns true if Hub integration is explicitly disabled.

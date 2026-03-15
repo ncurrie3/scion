@@ -1216,6 +1216,20 @@ func TestVersionedSettings_IsHubEnabled(t *testing.T) {
 	assert.True(t, vs.IsHubEnabled())
 }
 
+func TestVersionedSettings_IsHubLinked(t *testing.T) {
+	vs := &VersionedSettings{}
+	assert.False(t, vs.IsHubLinked())
+
+	vs.Hub = &V1HubClientConfig{}
+	assert.False(t, vs.IsHubLinked())
+
+	vs.Hub.Linked = boolPtr(false)
+	assert.False(t, vs.IsHubLinked())
+
+	vs.Hub.Linked = boolPtr(true)
+	assert.True(t, vs.IsHubLinked())
+}
+
 func TestVersionedSettings_IsHubExplicitlyDisabled(t *testing.T) {
 	vs := &VersionedSettings{}
 	assert.False(t, vs.IsHubExplicitlyDisabled())
@@ -3390,6 +3404,7 @@ func TestUpdateVersionedSetting_ImageRegistry(t *testing.T) {
 func TestGetVersionedSettingValue(t *testing.T) {
 	autohelp := true
 	enabled := false
+	linked := true
 	localOnly := true
 
 	vs := &VersionedSettings{
@@ -3399,9 +3414,10 @@ func TestGetVersionedSettingValue(t *testing.T) {
 		ImageRegistry:   "ghcr.io/myorg",
 		CLI:             &V1CLIConfig{AutoHelp: &autohelp},
 		Hub: &V1HubClientConfig{
-			Enabled:  &enabled,
-			Endpoint: "https://hub.example.com",
-			GroveID:  "grove-123",
+			Enabled:   &enabled,
+			Linked:    &linked,
+			Endpoint:  "https://hub.example.com",
+			GroveID:   "grove-123",
 			LocalOnly: &localOnly,
 		},
 		Server: &V1ServerConfig{
@@ -3423,6 +3439,7 @@ func TestGetVersionedSettingValue(t *testing.T) {
 		{"cli.autohelp", "true"},
 		{"grove_id", "grove-123"},
 		{"hub.enabled", "false"},
+		{"hub.linked", "true"},
 		{"hub.endpoint", "https://hub.example.com"},
 		{"hub.groveId", "grove-123"},
 		{"hub.local_only", "true"},
