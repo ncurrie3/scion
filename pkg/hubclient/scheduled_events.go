@@ -57,6 +57,7 @@ type CreateScheduledEventRequest struct {
 	AgentName string `json:"agentName,omitempty"`
 	Message   string `json:"message,omitempty"`
 	Interrupt bool   `json:"interrupt,omitempty"`
+	Plain     bool   `json:"plain,omitempty"`
 }
 
 // ScheduledEvent represents a scheduled event returned by the Hub API.

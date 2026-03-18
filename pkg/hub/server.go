@@ -1108,6 +1108,7 @@ type MessageEventPayload struct {
 	AgentName string `json:"agentName,omitempty"`
 	Message   string `json:"message"`
 	Interrupt bool   `json:"interrupt,omitempty"`
+	Plain     bool   `json:"plain,omitempty"`
 }
 
 // messageEventHandler returns an EventHandler that dispatches scheduled messages
@@ -1168,7 +1169,12 @@ func (s *Server) messageEventHandler() EventHandler {
 			return fmt.Errorf("no dispatcher available to deliver message")
 		}
 
-		if err := dispatcher.DispatchAgentMessage(ctx, agent, payload.Message, payload.Interrupt, nil); err != nil {
+		// Reconstruct structured message from payload to preserve traits like Plain.
+		structuredMsg := messages.NewInstruction("scheduler", agent.Name, payload.Message)
+		structuredMsg.Plain = payload.Plain
+		structuredMsg.Urgent = payload.Interrupt
+
+		if err := dispatcher.DispatchAgentMessage(ctx, agent, payload.Message, payload.Interrupt, structuredMsg); err != nil {
 			return fmt.Errorf("failed to dispatch message to agent %s: %w", agent.Name, err)
 		}
 

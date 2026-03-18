@@ -103,7 +103,7 @@ If --broadcast is used, the agent name can be omitted and the message will be se
 			if hubCtx == nil {
 				return fmt.Errorf("scheduled messages require Hub mode (use 'scion hub enable' first)")
 			}
-			return scheduleMessageViaHub(hubCtx, agentName, message, msgInterrupt)
+			return scheduleMessageViaHub(hubCtx, agentName, message, msgInterrupt, msgPlain)
 		}
 
 		// --notify requires Hub mode
@@ -362,7 +362,7 @@ func sendMessageViaHub(hubCtx *HubContext, agentName string, message string, int
 	return nil
 }
 
-func scheduleMessageViaHub(hubCtx *HubContext, agentName string, message string, interrupt bool) error {
+func scheduleMessageViaHub(hubCtx *HubContext, agentName string, message string, interrupt bool, plain bool) error {
 	if !isJSONOutput() {
 		PrintUsingHub(hubCtx.Endpoint)
 	}
@@ -377,6 +377,7 @@ func scheduleMessageViaHub(hubCtx *HubContext, agentName string, message string,
 		AgentName: agentName,
 		Message:   message,
 		Interrupt: interrupt,
+		Plain:     plain,
 	}
 
 	if msgIn != "" {

@@ -37,6 +37,7 @@ type CreateScheduledEventRequest struct {
 	AgentName string `json:"agentName,omitempty"`
 	Message   string `json:"message,omitempty"`
 	Interrupt bool   `json:"interrupt,omitempty"`
+	Plain     bool   `json:"plain,omitempty"`
 }
 
 // ScheduledEventResponse is the API response for a single scheduled event.
@@ -164,6 +165,7 @@ func (s *Server) createScheduledEvent(w http.ResponseWriter, r *http.Request, gr
 			AgentName: req.AgentName,
 			Message:   req.Message,
 			Interrupt: req.Interrupt,
+			Plain:     req.Plain,
 		}
 		payloadBytes, err := json.Marshal(p)
 		if err != nil {

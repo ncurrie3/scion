@@ -96,6 +96,30 @@ func TestScheduledEvent_CreateWithFireAt(t *testing.T) {
 	assert.WithinDuration(t, futureTime, evt.FireAt, 2*time.Second)
 }
 
+func TestScheduledEvent_CreateWithPlainFlag(t *testing.T) {
+	srv, _, groveID := setupScheduledEventTest(t)
+
+	req := CreateScheduledEventRequest{
+		EventType: "message",
+		FireIn:    "10m",
+		AgentName: "test-agent",
+		Message:   "plain message",
+		Plain:     true,
+	}
+
+	rec := doRequest(t, srv, http.MethodPost, "/api/v1/groves/"+groveID+"/scheduled-events", req)
+	assert.Equal(t, http.StatusCreated, rec.Code)
+
+	var evt store.ScheduledEvent
+	require.NoError(t, json.NewDecoder(rec.Body).Decode(&evt))
+
+	// Verify the Plain flag is preserved in the payload
+	var payload MessageEventPayload
+	require.NoError(t, json.Unmarshal([]byte(evt.Payload), &payload))
+	assert.True(t, payload.Plain, "plain flag should be preserved in payload")
+	assert.Equal(t, "plain message", payload.Message)
+}
+
 func TestScheduledEvent_CreateValidation(t *testing.T) {
 	srv, _, groveID := setupScheduledEventTest(t)
 	basePath := "/api/v1/groves/" + groveID + "/scheduled-events"
