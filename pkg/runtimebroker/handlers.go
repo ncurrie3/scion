@@ -1136,17 +1136,46 @@ func (s *Server) execCommand(w http.ResponseWriter, r *http.Request, id string) 
 func (s *Server) getLogs(w http.ResponseWriter, r *http.Request, id string) {
 	ctx := r.Context()
 
-	logs, err := s.runtime.GetLogs(ctx, id)
+	// Try to read agent.log from the filesystem first (preferred source).
+	agents, err := s.manager.List(ctx, map[string]string{"scion.agent": "true"})
 	if err != nil {
-		if strings.Contains(err.Error(), "not found") {
-			NotFound(w, "Agent")
+		RuntimeError(w, "Failed to list agents: "+err.Error())
+		return
+	}
+
+	var found *api.AgentInfo
+	for i := range agents {
+		if agents[i].Name == id || agents[i].ContainerID == id || agents[i].Slug == id {
+			found = &agents[i]
+			break
+		}
+	}
+
+	if found == nil {
+		NotFound(w, "Agent")
+		return
+	}
+
+	if found.GrovePath != "" {
+		agentLogPath := filepath.Join(config.GetAgentHomePath(
+			filepath.Join(found.GrovePath, ".scion"), found.Slug,
+		), "agent.log")
+		if data, err := os.ReadFile(agentLogPath); err == nil {
+			w.Header().Set("Content-Type", "text/plain")
+			w.WriteHeader(http.StatusOK)
+			w.Write(data)
 			return
 		}
+		// Fall through to container logs if agent.log not found
+	}
+
+	// Fallback: read container stdout logs
+	logs, err := s.runtime.GetLogs(ctx, id)
+	if err != nil {
 		RuntimeError(w, "Failed to get logs: "+err.Error())
 		return
 	}
 
-	// Return logs as plain text
 	w.Header().Set("Content-Type", "text/plain")
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(logs))

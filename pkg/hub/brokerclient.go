@@ -78,6 +78,11 @@ func (c *AuthenticatedBrokerClient) CreateAgentWithGather(ctx context.Context, b
 	return c.transport.CreateAgentWithGather(ctx, brokerID, brokerEndpoint, req)
 }
 
+// GetAgentLogs retrieves agent.log content from a remote runtime broker with HMAC authentication.
+func (c *AuthenticatedBrokerClient) GetAgentLogs(ctx context.Context, brokerID, brokerEndpoint, agentID string, tail int) (string, error) {
+	return c.transport.GetAgentLogs(ctx, brokerID, brokerEndpoint, agentID, tail)
+}
+
 // CleanupGrove asks a broker to remove its local hub-native grove directory with HMAC authentication.
 func (c *AuthenticatedBrokerClient) CleanupGrove(ctx context.Context, brokerID, brokerEndpoint, groveSlug string) error {
 	return c.transport.CleanupGrove(ctx, brokerID, brokerEndpoint, groveSlug)

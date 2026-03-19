@@ -27,6 +27,62 @@ import (
 	"github.com/GoogleCloudPlatform/scion/pkg/util/logging"
 )
 
+// handleAgentLogs handles GET /api/v1/agents/{id}/logs
+// and GET /api/v1/groves/{groveId}/agents/{agentId}/logs
+// It proxies the request to the agent's runtime broker to read agent.log.
+func (s *Server) handleAgentLogs(w http.ResponseWriter, r *http.Request, agentID string) {
+	if r.Method != http.MethodGet {
+		MethodNotAllowed(w)
+		return
+	}
+
+	ctx := r.Context()
+
+	agent, err := s.store.GetAgent(ctx, agentID)
+	if err != nil {
+		writeErrorFromErr(w, err, "")
+		return
+	}
+
+	if userIdent := GetUserIdentityFromContext(ctx); userIdent != nil {
+		decision := s.authzService.CheckAccess(ctx, userIdent, agentResource(agent), ActionRead)
+		if !decision.Allowed {
+			writeError(w, http.StatusForbidden, ErrCodeForbidden, "Access denied", nil)
+			return
+		}
+	}
+	if agentIdent := GetAgentIdentityFromContext(ctx); agentIdent != nil {
+		if agent.GroveID != agentIdent.GroveID() {
+			NotFound(w, "Agent")
+			return
+		}
+	}
+
+	dispatcher := s.GetDispatcher()
+	if dispatcher == nil {
+		writeError(w, http.StatusNotImplemented, "not_implemented",
+			"No agent dispatcher configured", nil)
+		return
+	}
+
+	tail := 0
+	if v := r.URL.Query().Get("tail"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			tail = n
+		}
+	}
+
+	logs, err := dispatcher.DispatchAgentLogs(ctx, agent, tail)
+	if err != nil {
+		slog.Error("agent log relay failed", "agentID", agentID, "error", err)
+		writeError(w, http.StatusBadGateway, ErrCodeInternalError,
+			"Failed to retrieve logs from broker: "+err.Error(), nil)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"logs": logs})
+}
+
 // handleAgentCloudLogs handles GET /api/v1/agents/{id}/cloud-logs
 // and GET /api/v1/groves/{groveId}/agents/{agentId}/cloud-logs
 func (s *Server) handleAgentCloudLogs(w http.ResponseWriter, r *http.Request, agentID string) {

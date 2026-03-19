@@ -354,6 +354,26 @@ func (t *brokerHTTPTransport) FinalizeEnv(ctx context.Context, brokerID, brokerE
 	return &result, nil
 }
 
+func (t *brokerHTTPTransport) GetAgentLogs(ctx context.Context, brokerID, brokerEndpoint, agentID string, tail int) (string, error) {
+	endpoint := fmt.Sprintf("%s/api/v1/agents/%s/logs", strings.TrimSuffix(brokerEndpoint, "/"), url.PathEscape(agentID))
+	if tail > 0 {
+		endpoint += fmt.Sprintf("?tail=%d", tail)
+	}
+	resp, err := t.doRequest(ctx, brokerID, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode >= 400 {
+		return "", brokerHTTPError(resp)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response: %w", err)
+	}
+	return string(body), nil
+}
+
 func (t *brokerHTTPTransport) CleanupGrove(ctx context.Context, brokerID, brokerEndpoint, groveSlug string) error {
 	endpoint := fmt.Sprintf("%s/api/v1/groves/%s", strings.TrimSuffix(brokerEndpoint, "/"), url.PathEscape(groveSlug))
 	resp, err := t.doRequest(ctx, brokerID, http.MethodDelete, endpoint, nil)

@@ -78,6 +78,9 @@ func (d *brokerMockDispatcher) DispatchCheckAgentPrompt(ctx context.Context, age
 func (d *brokerMockDispatcher) DispatchAgentCreateWithGather(ctx context.Context, agent *store.Agent) (*RemoteEnvRequirementsResponse, error) {
 	return nil, nil
 }
+func (d *brokerMockDispatcher) DispatchAgentLogs(_ context.Context, _ *store.Agent, _ int) (string, error) {
+	return "", nil
+}
 func (d *brokerMockDispatcher) DispatchFinalizeEnv(ctx context.Context, agent *store.Agent, env map[string]string) error {
 	return nil
 }

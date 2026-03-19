@@ -147,6 +147,9 @@ func (d *mockDispatcher) DispatchCheckAgentPrompt(_ context.Context, _ *store.Ag
 func (d *mockDispatcher) DispatchAgentCreateWithGather(_ context.Context, agent *store.Agent) (*RemoteEnvRequirementsResponse, error) {
 	return nil, d.DispatchAgentCreate(context.Background(), agent)
 }
+func (d *mockDispatcher) DispatchAgentLogs(_ context.Context, _ *store.Agent, _ int) (string, error) {
+	return "", nil
+}
 func (d *mockDispatcher) DispatchFinalizeEnv(_ context.Context, _ *store.Agent, _ map[string]string) error {
 	return nil
 }

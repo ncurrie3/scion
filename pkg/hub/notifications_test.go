@@ -85,6 +85,9 @@ func (d *recordingDispatcher) DispatchCheckAgentPrompt(_ context.Context, _ *sto
 func (d *recordingDispatcher) DispatchAgentCreateWithGather(_ context.Context, _ *store.Agent) (*RemoteEnvRequirementsResponse, error) {
 	return nil, nil
 }
+func (d *recordingDispatcher) DispatchAgentLogs(_ context.Context, _ *store.Agent, _ int) (string, error) {
+	return "", nil
+}
 func (d *recordingDispatcher) DispatchFinalizeEnv(_ context.Context, _ *store.Agent, _ map[string]string) error {
 	return nil
 }

@@ -234,7 +234,21 @@ func (c *ControlChannelBrokerClient) CreateAgentWithGather(ctx context.Context, 
 	return &result, nil, nil
 }
 
-// CleanupGrove asks a broker to remove its local hub-native grove directory via control channel.
+// GetAgentLogs retrieves agent.log content from a remote runtime broker via control channel.
+func (c *ControlChannelBrokerClient) GetAgentLogs(ctx context.Context, brokerID, brokerEndpoint, agentID string, tail int) (string, error) {
+	_ = brokerEndpoint
+	path := fmt.Sprintf("/api/v1/agents/%s/logs", url.PathEscape(agentID))
+	query := ""
+	if tail > 0 {
+		query = fmt.Sprintf("tail=%d", tail)
+	}
+	resp, err := c.doRequest(ctx, brokerID, "GET", path, query, nil)
+	if err != nil {
+		return "", err
+	}
+	return string(resp.Body), nil
+}
+
 func (c *ControlChannelBrokerClient) CleanupGrove(ctx context.Context, brokerID, brokerEndpoint, groveSlug string) error {
 	_ = brokerEndpoint
 	path := fmt.Sprintf("/api/v1/groves/%s", url.PathEscape(groveSlug))
@@ -445,7 +459,14 @@ func (c *HybridBrokerClient) CreateAgentWithGather(ctx context.Context, brokerID
 	return c.httpClient.CreateAgentWithGather(ctx, brokerID, brokerEndpoint, req)
 }
 
-// CleanupGrove asks a broker to remove its local hub-native grove directory, preferring control channel.
+// GetAgentLogs retrieves agent.log content, preferring control channel.
+func (c *HybridBrokerClient) GetAgentLogs(ctx context.Context, brokerID, brokerEndpoint, agentID string, tail int) (string, error) {
+	if c.useControlChannel(brokerID) {
+		return c.controlChannel.GetAgentLogs(ctx, brokerID, brokerEndpoint, agentID, tail)
+	}
+	return c.httpClient.GetAgentLogs(ctx, brokerID, brokerEndpoint, agentID, tail)
+}
+
 func (c *HybridBrokerClient) CleanupGrove(ctx context.Context, brokerID, brokerEndpoint, groveSlug string) error {
 	if c.useControlChannel(brokerID) {
 		return c.controlChannel.CleanupGrove(ctx, brokerID, brokerEndpoint, groveSlug)

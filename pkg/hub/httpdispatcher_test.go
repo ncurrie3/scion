@@ -167,6 +167,10 @@ func (m *mockRuntimeBrokerClient) FinalizeEnv(ctx context.Context, brokerID, bro
 	}, m.returnErr
 }
 
+func (m *mockRuntimeBrokerClient) GetAgentLogs(ctx context.Context, brokerID, brokerEndpoint, agentID string, tail int) (string, error) {
+	return "", nil
+}
+
 func (m *mockRuntimeBrokerClient) CleanupGrove(ctx context.Context, brokerID, brokerEndpoint, groveSlug string) error {
 	m.cleanupCalled = true
 	m.cleanupCalls++

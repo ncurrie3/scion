@@ -56,6 +56,9 @@ func (noopDispatcher) DispatchAgentCreateWithGather(_ context.Context, agent *st
 	agent.Phase = string(state.PhaseRunning)
 	return nil, nil
 }
+func (noopDispatcher) DispatchAgentLogs(_ context.Context, _ *store.Agent, _ int) (string, error) {
+	return "", nil
+}
 func (noopDispatcher) DispatchFinalizeEnv(_ context.Context, _ *store.Agent, _ map[string]string) error {
 	return nil
 }

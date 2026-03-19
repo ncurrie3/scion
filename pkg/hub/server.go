@@ -176,6 +176,9 @@ type AgentDispatcher interface {
 	// The structuredMsg parameter is optional; when nil, the plain message string is used.
 	DispatchAgentMessage(ctx context.Context, agent *store.Agent, message string, interrupt bool, structuredMsg *messages.StructuredMessage) error
 
+	// DispatchAgentLogs retrieves agent.log content from the runtime broker.
+	DispatchAgentLogs(ctx context.Context, agent *store.Agent, tail int) (string, error)
+
 	// DispatchCheckAgentPrompt checks if an agent has a non-empty prompt.md file.
 	DispatchCheckAgentPrompt(ctx context.Context, agent *store.Agent) (bool, error)
 
@@ -236,6 +239,10 @@ type RuntimeBrokerClient interface {
 	// CreateAgentWithGather creates an agent and handles 202 env-gather responses.
 	// Returns (response, nil, nil) on success, (nil, envReqs, nil) on 202, or (nil, nil, err) on error.
 	CreateAgentWithGather(ctx context.Context, brokerID, brokerEndpoint string, req *RemoteCreateAgentRequest) (*RemoteAgentResponse, *RemoteEnvRequirementsResponse, error)
+
+	// GetAgentLogs retrieves agent.log content from a remote runtime broker.
+	// brokerID is used for HMAC authentication lookup.
+	GetAgentLogs(ctx context.Context, brokerID, brokerEndpoint, agentID string, tail int) (string, error)
 
 	// CleanupGrove asks a broker to remove its local hub-native grove directory.
 	// brokerID is used for HMAC authentication lookup.

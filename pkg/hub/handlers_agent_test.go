@@ -807,6 +807,9 @@ func (d *failingCreateDispatcher) DispatchAgentDelete(_ context.Context, _ *stor
 	d.deleteBranch = removeBranch
 	return nil
 }
+func (d *createAgentDispatcher) DispatchAgentLogs(_ context.Context, _ *store.Agent, _ int) (string, error) {
+	return "", nil
+}
 func (d *createAgentDispatcher) DispatchFinalizeEnv(_ context.Context, _ *store.Agent, _ map[string]string) error {
 	return nil
 }
