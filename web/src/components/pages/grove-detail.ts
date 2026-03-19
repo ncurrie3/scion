@@ -514,13 +514,17 @@ export class ScionPageGroveDetail extends LitElement {
       color: var(--scion-text-muted, #64748b);
     }
 
+    .file-table-wrapper {
+      max-height: 26rem; /* ~10 rows visible */
+      overflow-y: auto;
+      border: 1px solid var(--scion-border, #e2e8f0);
+      border-radius: var(--scion-radius-lg, 0.75rem);
+    }
+
     .file-table {
       width: 100%;
       border-collapse: collapse;
       background: var(--scion-surface, #ffffff);
-      border: 1px solid var(--scion-border, #e2e8f0);
-      border-radius: var(--scion-radius-lg, 0.75rem);
-      overflow: hidden;
     }
 
     .file-table th,
@@ -537,10 +541,22 @@ export class ScionPageGroveDetail extends LitElement {
       color: var(--scion-text-muted, #64748b);
       background: var(--scion-bg-subtle, #f8fafc);
       font-weight: 600;
+      position: sticky;
+      top: 0;
+      z-index: 1;
     }
 
     .file-table tr:last-child td {
       border-bottom: none;
+    }
+
+    .file-list-truncated {
+      padding: 0.5rem 1rem;
+      font-size: 0.75rem;
+      color: var(--scion-text-muted, #64748b);
+      text-align: center;
+      background: var(--scion-bg-subtle, #f8fafc);
+      border-top: 1px solid var(--scion-border, #e2e8f0);
     }
 
     .file-name {
@@ -1270,66 +1286,73 @@ export class ScionPageGroveDetail extends LitElement {
                 </div>
               `
             : html`
-                <table class="file-table">
-                  <thead>
-                    <tr>
-                      <th>Name</th>
-                      <th>Size</th>
-                      <th>Modified</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${this.workspaceFiles.map(
-                      (file) => html`
-                        <tr>
-                          <td>
-                            <span class="file-name">
-                              <sl-icon name="file-earmark"></sl-icon>
-                              ${file.path}
-                            </span>
-                          </td>
-                          <td><span class="file-size">${this.formatFileSize(file.size)}</span></td>
-                          <td>
-                            <span class="file-date">${this.formatDate(file.modTime)}</span>
-                          </td>
-                          <td class="file-actions">
-                            ${this.isPreviewable(file.path)
-                              ? html`
-                                  <sl-icon-button
-                                    name="eye"
-                                    label="Preview ${file.path}"
-                                    @click=${() => this.handleFilePreview(file.path)}
-                                  ></sl-icon-button>
-                                `
-                              : html`
-                                  <sl-icon-button
-                                    name="eye"
-                                    label="Preview not available for this format"
-                                    class="preview-disabled"
-                                    disabled
-                                  ></sl-icon-button>
-                                `}
-                            <sl-icon-button
-                              name="download"
-                              label="Download ${file.path}"
-                              @click=${() => this.handleFileDownload(file.path)}
-                            ></sl-icon-button>
-                            ${can(this.grove?._capabilities, 'update')
-                              ? html`
-                                  <sl-icon-button
-                                    name="trash"
-                                    label="Delete ${file.path}"
-                                    @click=${(e: MouseEvent) => this.handleFileDelete(file.path, e)}
-                                  ></sl-icon-button>
-                                `
-                              : nothing}
-                          </td>
-                        </tr>
-                      `
-                    )}
-                  </tbody>
-                </table>
+                <div class="file-table-wrapper">
+                  <table class="file-table">
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Size</th>
+                        <th>Modified</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${this.workspaceFiles.slice(0, 1000).map(
+                        (file) => html`
+                          <tr>
+                            <td>
+                              <span class="file-name">
+                                <sl-icon name="file-earmark"></sl-icon>
+                                ${file.path}
+                              </span>
+                            </td>
+                            <td><span class="file-size">${this.formatFileSize(file.size)}</span></td>
+                            <td>
+                              <span class="file-date">${this.formatDate(file.modTime)}</span>
+                            </td>
+                            <td class="file-actions">
+                              ${this.isPreviewable(file.path)
+                                ? html`
+                                    <sl-icon-button
+                                      name="eye"
+                                      label="Preview ${file.path}"
+                                      @click=${() => this.handleFilePreview(file.path)}
+                                    ></sl-icon-button>
+                                  `
+                                : html`
+                                    <sl-icon-button
+                                      name="eye"
+                                      label="Preview not available for this format"
+                                      class="preview-disabled"
+                                      disabled
+                                    ></sl-icon-button>
+                                  `}
+                              <sl-icon-button
+                                name="download"
+                                label="Download ${file.path}"
+                                @click=${() => this.handleFileDownload(file.path)}
+                              ></sl-icon-button>
+                              ${can(this.grove?._capabilities, 'update')
+                                ? html`
+                                    <sl-icon-button
+                                      name="trash"
+                                      label="Delete ${file.path}"
+                                      @click=${(e: MouseEvent) => this.handleFileDelete(file.path, e)}
+                                    ></sl-icon-button>
+                                  `
+                                : nothing}
+                            </td>
+                          </tr>
+                        `
+                      )}
+                    </tbody>
+                  </table>
+                  ${this.workspaceFiles.length > 1000
+                    ? html`<div class="file-list-truncated">
+                        File list truncated — showing 1,000 of ${this.workspaceFiles.length.toLocaleString()} files
+                      </div>`
+                    : nothing}
+                </div>
               `}
       </div>
     `;
