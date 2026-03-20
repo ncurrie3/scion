@@ -50,6 +50,10 @@ type Manager interface {
 
 	// Watch returns a channel of status updates for an agent
 	Watch(ctx context.Context, agentID string) (<-chan api.StatusEvent, error)
+
+	// Close flushes any pending message buffers. Must be called before
+	// the process exits to ensure buffered messages are delivered.
+	Close()
 }
 
 type AgentManager struct {
@@ -72,6 +76,10 @@ func NewManager(rt runtime.Runtime) Manager {
 		return mgr.deliverImmediate(context.Background(), agentID, message, interrupt)
 	})
 	return mgr
+}
+
+func (m *AgentManager) Close() {
+	m.msgBuffer.Close()
 }
 
 func (m *AgentManager) Stop(ctx context.Context, agentID string) error {

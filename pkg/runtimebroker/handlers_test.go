@@ -88,6 +88,8 @@ func (m *mockManager) Watch(ctx context.Context, agentID string) (<-chan api.Sta
 	return nil, nil
 }
 
+func (m *mockManager) Close() {}
+
 func newTestServer() *Server {
 	cfg := DefaultServerConfig()
 	cfg.BrokerID = "test-broker-id"

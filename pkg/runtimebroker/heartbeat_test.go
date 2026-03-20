@@ -117,6 +117,8 @@ func (m *heartbeatMockManager) Watch(ctx context.Context, agentID string) (<-cha
 	return nil, nil
 }
 
+func (m *heartbeatMockManager) Close() {}
+
 func TestHeartbeatService_StartStop(t *testing.T) {
 	client := &mockRuntimeBrokerService{}
 	svc := NewHeartbeatService(client, "test-host", 100*time.Millisecond, nil, nil, slog.Default())

@@ -63,6 +63,8 @@ func (m *mockAgentManager) Watch(ctx context.Context, name string) (<-chan api.S
 	return nil, nil
 }
 
+func (m *mockAgentManager) Close() {}
+
 // Ensure mockAgentManager implements agent.Manager
 var _ agent.Manager = (*mockAgentManager)(nil)
 

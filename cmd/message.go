@@ -126,6 +126,7 @@ If --broadcast is used, the agent name can be omitted and the message will be se
 
 		rt := runtime.GetRuntime(grovePath, effectiveProfile)
 		mgr := agent.NewManager(rt)
+		defer mgr.Close()
 
 		var targets []string
 		if msgBroadcast || msgAll {
