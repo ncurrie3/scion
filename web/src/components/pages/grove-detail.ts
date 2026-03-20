@@ -788,19 +788,6 @@ export class ScionPageGroveDetail extends LitElement {
     return html`<sl-icon name=${icon}></sl-icon>`;
   }
 
-  private getGroveStatusVariant(status: string): 'success' | 'warning' | 'danger' | 'neutral' {
-    switch (status) {
-      case 'active':
-        return 'success';
-      case 'inactive':
-        return 'neutral';
-      case 'error':
-        return 'danger';
-      default:
-        return 'neutral';
-    }
-  }
-
   private formatDate(dateString: string): string {
     try {
       const date = new Date(dateString);
@@ -1119,11 +1106,6 @@ export class ScionPageGroveDetail extends LitElement {
           <div class="header-title">
             ${this.renderGroveIcon()}
             <h1>${this.grove.name}</h1>
-            <scion-status-badge
-              status=${this.getGroveStatusVariant(this.grove.status)}
-              label=${this.grove.status}
-              size="small"
-            ></scion-status-badge>
           </div>
           <div class="header-path">${this.grove.gitRemote || (this.grove.groveType === 'linked' ? 'Linked grove' : 'Hub Workspace')}</div>
         </div>
