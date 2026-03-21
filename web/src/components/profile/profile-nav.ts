@@ -21,10 +21,11 @@
  * prominent "Return to Hub" link at the top.
  */
 
-import { LitElement, html, css } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { LitElement, html, css, nothing } from 'lit';
+import { customElement, property, state } from 'lit/decorators.js';
+import { apiFetch } from '../../client/api.js';
 
-import type { User } from '../../shared/types.js';
+import type { User, Grove } from '../../shared/types.js';
 
 interface NavItem {
   path: string;
@@ -59,6 +60,9 @@ export class ScionProfileNav extends LitElement {
 
   @property({ type: String })
   currentPath = '/profile';
+
+  @state()
+  private githubAppUrl: string | null = null;
 
   static override styles = css`
     :host {
@@ -255,7 +259,63 @@ export class ScionProfileNav extends LitElement {
       text-overflow: ellipsis;
       white-space: nowrap;
     }
+
+    .nav-link-external {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.625rem 0.75rem;
+      padding-left: 2.375rem;
+      border-radius: 0.5rem;
+      color: var(--scion-text-muted, #64748b);
+      text-decoration: none;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+
+    .nav-link-external:hover {
+      background: var(--scion-bg-subtle, #f1f5f9);
+      color: var(--scion-text, #1e293b);
+    }
+
+    .nav-link-external sl-icon {
+      font-size: 1rem;
+      flex-shrink: 0;
+    }
+
+    .nav-link-external .external-icon {
+      font-size: 0.6875rem;
+      margin-left: auto;
+      opacity: 0.6;
+    }
   `;
+
+  override connectedCallback(): void {
+    super.connectedCallback();
+    this.checkGitHubApp();
+  }
+
+  private async checkGitHubApp(): Promise<void> {
+    try {
+      const [appRes, grovesRes] = await Promise.all([
+        apiFetch('/api/v1/github-app'),
+        apiFetch('/api/v1/groves?mine=true'),
+      ]);
+      if (!appRes.ok || !grovesRes.ok) return;
+
+      const appData = (await appRes.json()) as { configured: boolean; installation_url?: string };
+      if (!appData.configured || !appData.installation_url) return;
+
+      const grovesData = (await grovesRes.json()) as { groves: Grove[] };
+      const hasInstallation = (grovesData.groves || []).some((g) => g.githubInstallationId);
+      if (hasInstallation) {
+        this.githubAppUrl = appData.installation_url;
+      }
+    } catch {
+      // Non-fatal
+    }
+  }
 
   override render() {
     return html`
@@ -303,6 +363,22 @@ export class ScionProfileNav extends LitElement {
                         <span class="nav-link-text">${item.label}</span>
                       </a>
                     </li>
+                    ${item.path === '/profile/tokens' && this.githubAppUrl
+                      ? html`
+                          <li class="nav-item">
+                            <a
+                              href=${this.githubAppUrl}
+                              target="_blank"
+                              rel="noopener"
+                              class="nav-link-external"
+                            >
+                              <sl-icon name="github"></sl-icon>
+                              <span class="nav-link-text">Configure GitHub App</span>
+                              <sl-icon name="box-arrow-up-right" class="external-icon"></sl-icon>
+                            </a>
+                          </li>
+                        `
+                      : nothing}
                   `
                 )}
               </ul>
