@@ -108,9 +108,6 @@ func (nd *NotificationDispatcher) handleEvent(evt Event) {
 
 	ctx := context.Background()
 
-	nd.log.Debug("Notification dispatcher received event",
-		"agent_id", statusEvt.AgentID, "activity", statusEvt.Activity, "phase", statusEvt.Phase)
-
 	// Collect subscriptions from both scopes: agent-scoped first (more specific),
 	// then grove-scoped.
 	agentSubs, err := nd.store.GetNotificationSubscriptions(ctx, statusEvt.AgentID)
@@ -139,9 +136,6 @@ func (nd *NotificationDispatcher) handleEvent(evt Event) {
 	if matchStatus == "" {
 		matchStatus = statusEvt.Phase
 	}
-
-	nd.log.Debug("Notification dispatcher checking subscriptions",
-		"agent_id", statusEvt.AgentID, "activity", matchStatus, "subscriptionCount", len(allSubs))
 
 	// Deduplicate: one notification per (subscriber_type, subscriber_id).
 	// Agent-scoped subscriptions are checked first since they are more specific.
@@ -186,9 +180,6 @@ func (nd *NotificationDispatcher) handleDeletedEvent(evt Event) {
 	}
 
 	ctx := context.Background()
-
-	nd.log.Debug("Notification dispatcher received deleted event",
-		"agent_id", deletedEvt.AgentID, "grove_id", deletedEvt.GroveID)
 
 	// Collect subscriptions from both scopes
 	agentSubs, err := nd.store.GetNotificationSubscriptions(ctx, deletedEvt.AgentID)
