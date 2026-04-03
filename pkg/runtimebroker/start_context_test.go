@@ -513,6 +513,9 @@ func TestBuildStartContext_GCPMetadataDefaultBlock(t *testing.T) {
 	if sc.Opts.Env["GCE_METADATA_HOST"] != "localhost:18380" {
 		t.Errorf("expected GCE_METADATA_HOST='localhost:18380', got %q", sc.Opts.Env["GCE_METADATA_HOST"])
 	}
+	if sc.Opts.Env["GCE_METADATA_ROOT"] != "localhost:18380" {
+		t.Errorf("expected GCE_METADATA_ROOT='localhost:18380', got %q", sc.Opts.Env["GCE_METADATA_ROOT"])
+	}
 	// No SA env vars should be set in block mode
 	if sc.Opts.Env["SCION_METADATA_SA_EMAIL"] != "" {
 		t.Errorf("expected empty SCION_METADATA_SA_EMAIL in block mode, got %q", sc.Opts.Env["SCION_METADATA_SA_EMAIL"])
@@ -548,6 +551,9 @@ func TestBuildStartContext_GCPMetadataPassthrough(t *testing.T) {
 	if sc.Opts.Env["GCE_METADATA_HOST"] != "" {
 		t.Errorf("expected no GCE_METADATA_HOST for passthrough, got %q", sc.Opts.Env["GCE_METADATA_HOST"])
 	}
+	if sc.Opts.Env["GCE_METADATA_ROOT"] != "" {
+		t.Errorf("expected no GCE_METADATA_ROOT for passthrough, got %q", sc.Opts.Env["GCE_METADATA_ROOT"])
+	}
 }
 
 func TestBuildStartContext_GCPMetadataExplicitBlock(t *testing.T) {
@@ -577,5 +583,8 @@ func TestBuildStartContext_GCPMetadataExplicitBlock(t *testing.T) {
 	}
 	if sc.Opts.Env["GCE_METADATA_HOST"] != "localhost:18380" {
 		t.Errorf("expected GCE_METADATA_HOST='localhost:18380', got %q", sc.Opts.Env["GCE_METADATA_HOST"])
+	}
+	if sc.Opts.Env["GCE_METADATA_ROOT"] != "localhost:18380" {
+		t.Errorf("expected GCE_METADATA_ROOT='localhost:18380', got %q", sc.Opts.Env["GCE_METADATA_ROOT"])
 	}
 }

@@ -163,7 +163,7 @@ func (s *Server) Start(ctx context.Context) error {
 	// For assign mode: only the REDIRECT is needed.
 	if err := setupIPTablesRedirect(s.config.Port); err != nil {
 		// Non-fatal: iptables may not be available (no NET_ADMIN cap, non-Docker runtime).
-		// The GCE_METADATA_HOST env var is the primary mechanism.
+		// The GCE_METADATA_HOST / GCE_METADATA_ROOT env vars are the primary mechanism.
 		log.Debug("iptables redirect not available: %v", err)
 	} else {
 		s.iptablesConfigured = true

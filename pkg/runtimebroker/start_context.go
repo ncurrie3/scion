@@ -291,6 +291,9 @@ func (s *Server) buildStartContext(ctx context.Context, in startContextInputs) (
 			env["SCION_METADATA_PROJECT_ID"] = in.Config.GCPIdentity.ProjectID
 		}
 		env["GCE_METADATA_HOST"] = "localhost:18380"
+		// gcloud CLI uses GCE_METADATA_ROOT (not GCE_METADATA_HOST) to locate
+		// the metadata server during its initial configuration detection.
+		env["GCE_METADATA_ROOT"] = "localhost:18380"
 	}
 
 	// Debug log final env

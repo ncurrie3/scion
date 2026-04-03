@@ -305,6 +305,15 @@ func runInit(args []string) int {
 	// Start GCP metadata server if configured
 	var metadataServer *metadata.Server
 	if metaCfg := metadata.ConfigFromEnv(); metaCfg != nil {
+		// Remove any pre-existing gcloud configuration so that gcloud
+		// re-initializes and discovers the emulated metadata server via
+		// GCE_METADATA_ROOT. gcloud only checks for the metadata server
+		// during its first-run configuration detection.
+		if gcloudDir := filepath.Join(agentHome, ".config", "gcloud"); gcloudDir != "" {
+			if err := os.RemoveAll(gcloudDir); err != nil {
+				log.Debug("Could not remove gcloud config dir %s: %v", gcloudDir, err)
+			}
+		}
 		metadataServer = metadata.New(*metaCfg)
 		metaCtx := context.Background()
 		if err := metadataServer.Start(metaCtx); err != nil {
