@@ -70,6 +70,7 @@ func GatherAuthWithEnv(env map[string]string, localSources bool) api.AuthConfig 
 			lookup("GOOGLE_CLOUD_LOCATION"),
 		),
 		GoogleAppCredentials: lookup("GOOGLE_APPLICATION_CREDENTIALS"),
+		GCPMetadataMode:      lookup("SCION_METADATA_MODE"),
 	}
 
 	// File-sourced fields: check well-known paths (skip in broker mode)
@@ -198,9 +199,11 @@ func ValidateAuth(resolved *api.ResolvedAuth) error {
 // RequiredAuthSecrets maps a (harnessName, authSelectedType) pair to
 // file-type secrets required by that combination. This is the file-secret
 // counterpart to RequiredAuthEnvKeys (which covers env var requirements).
-// For vertex-ai auth, the ADC credential file is required.
+// For vertex-ai auth, the ADC credential file is required unless a GCP
+// service account is assigned (gcpSAAssigned), in which case the metadata
+// server provides credentials and no ADC file is needed.
 // Returns nil for auth methods that have no file-secret requirements.
-func RequiredAuthSecrets(harnessName, authSelectedType string) []api.RequiredSecret {
+func RequiredAuthSecrets(harnessName, authSelectedType string, gcpSAAssigned bool) []api.RequiredSecret {
 	effectiveType := authSelectedType
 	if effectiveType == "" {
 		effectiveType = "api-key"
@@ -208,7 +211,7 @@ func RequiredAuthSecrets(harnessName, authSelectedType string) []api.RequiredSec
 
 	switch harnessName {
 	case "claude", "gemini", "opencode", "codex":
-		if effectiveType == "vertex-ai" {
+		if effectiveType == "vertex-ai" && !gcpSAAssigned {
 			return []api.RequiredSecret{
 				{
 					Key:         "gcloud-adc",
@@ -255,6 +258,20 @@ func DetectAuthTypeFromFileSecrets(harnessName string, fileSecretNames map[strin
 		if _, ok := fileSecretNames["OPENCODE_AUTH"]; ok {
 			return "auth-file"
 		}
+	}
+	return ""
+}
+
+// DetectAuthTypeFromGCPIdentity returns "vertex-ai" when a GCP service
+// account is assigned to the agent. Harnesses that support vertex-ai auth
+// can use the metadata server for credentials instead of an ADC file.
+func DetectAuthTypeFromGCPIdentity(harnessName string, gcpSAAssigned bool) string {
+	if !gcpSAAssigned {
+		return ""
+	}
+	switch harnessName {
+	case "claude", "gemini":
+		return "vertex-ai"
 	}
 	return ""
 }

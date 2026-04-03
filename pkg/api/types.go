@@ -374,6 +374,11 @@ type AuthConfig struct {
 	CodexAuthFile    string
 	OpenCodeAuthFile string
 
+	// GCP metadata server mode ("block", "passthrough", "assign").
+	// When "assign", a GCP service account is available via the metadata
+	// server and ADC file secrets are not required for vertex-ai auth.
+	GCPMetadataMode string
+
 	// Auth mode selection
 	SelectedType string
 }

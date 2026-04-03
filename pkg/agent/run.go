@@ -320,7 +320,7 @@ func (m *AgentManager) Start(ctx context.Context, opts api.StartOptions) (*api.A
 		if opts.BrokerMode {
 			harness.OverlayFileSecrets(&auth, opts.ResolvedSecrets)
 		}
-		util.Debugf("auth: gathered credentials — selectedType=%q, hasGeminiKey=%t, hasGoogleKey=%t, hasOAuth=%t, hasADC=%t, hasAnthropicKey=%t, cloudProject=%q, brokerMode=%t",
+		util.Debugf("auth: gathered credentials — selectedType=%q, hasGeminiKey=%t, hasGoogleKey=%t, hasOAuth=%t, hasADC=%t, hasAnthropicKey=%t, cloudProject=%q, gcpMetadataMode=%q, brokerMode=%t",
 			auth.SelectedType,
 			auth.GeminiAPIKey != "",
 			auth.GoogleAPIKey != "",
@@ -328,6 +328,7 @@ func (m *AgentManager) Start(ctx context.Context, opts api.StartOptions) (*api.A
 			auth.GoogleAppCredentials != "",
 			auth.AnthropicAPIKey != "",
 			auth.GoogleCloudProject,
+			auth.GCPMetadataMode,
 			opts.BrokerMode,
 		)
 		harness.OverlaySettings(&auth, h, agentDir)
