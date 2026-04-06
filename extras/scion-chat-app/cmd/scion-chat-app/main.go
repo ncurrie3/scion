@@ -101,6 +101,10 @@ func main() {
 	defer pluginServer.Close()
 	log.Info("broker plugin RPC server started", "address", pluginServer.Addr())
 
+	// Create a root context for the application lifetime.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Create command router with a nil messenger; set after adapter creation.
 	cmdRouter := chatapp.NewCommandRouter(
 		adminClient,
@@ -116,6 +120,20 @@ func main() {
 	var messenger chatapp.Messenger
 
 	if cfg.Platforms.GoogleChat.Enabled {
+		// Preflight: verify Chat API credentials before starting.
+		gcLog := log.With("component", "googlechat")
+		if err := googlechat.PreflightAuth(ctx, cfg.Platforms.GoogleChat.Credentials, cfg.Platforms.GoogleChat.ProjectID, gcLog); err != nil {
+			log.Error("google chat credential preflight failed", "error", err)
+			os.Exit(1)
+		}
+
+		// Create an authenticated HTTP client (SA key file or ADC).
+		chatClient, err := googlechat.NewAuthenticatedClient(ctx, cfg.Platforms.GoogleChat.Credentials, gcLog)
+		if err != nil {
+			log.Error("failed to create authenticated Chat API client", "error", err)
+			os.Exit(1)
+		}
+
 		gcAdapter := googlechat.NewAdapter(
 			googlechat.Config{
 				ProjectID:           cfg.Platforms.GoogleChat.ProjectID,
@@ -126,8 +144,8 @@ func main() {
 				Credentials:         cfg.Platforms.GoogleChat.Credentials,
 			},
 			cmdRouter.HandleEvent,
-			nil, // uses http.DefaultClient
-			log.With("component", "googlechat"),
+			chatClient,
+			gcLog,
 		)
 		messenger = gcAdapter
 		log.Info("google chat adapter initialized",
@@ -161,9 +179,6 @@ func main() {
 	}
 
 	// Start platform servers.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	errCh := make(chan error, 1)
 
 	if cfg.Platforms.GoogleChat.Enabled && messenger != nil {

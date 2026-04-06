@@ -100,7 +100,7 @@ platforms:
   google_chat:
     enabled: true
     project_id: "${CHAT_APP_PROJECT_ID}"
-    credentials: "${CHAT_APP_CREDENTIALS}"
+    credentials: "${CHAT_APP_CREDENTIALS:-}"
     listen_address: ":${LISTEN_PORT}"
     external_url: "${EXTERNAL_URL}"
     service_account_email: "${CHAT_APP_SERVICE_ACCOUNT_EMAIL:-}"
