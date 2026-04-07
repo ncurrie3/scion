@@ -84,6 +84,72 @@ fi
 # Derive the external URL from the hub endpoint.
 EXTERNAL_URL="${SCION_HUB_ENDPOINT}/chat/events"
 
+# ---------------------------------------------------------------------------
+# Chat API preflight — verify the service account can call the Chat API.
+# When using ADC on a GCE VM the instance's OAuth scopes and IAM bindings
+# must include the Chat API. These are easy to miss and produce an opaque
+# 403 at runtime, so we check here and print the exact gcloud commands.
+# ---------------------------------------------------------------------------
+step "Checking Chat API prerequisites"
+
+REQUIRED_SCOPE="https://www.googleapis.com/auth/chat.bot"
+BROAD_SCOPE="https://www.googleapis.com/auth/cloud-platform"
+
+if [[ -z "${CHAT_APP_CREDENTIALS:-}" ]]; then
+    # ADC path — check VM metadata for scopes.
+    METADATA_URL="http://metadata.google.internal/computeMetadata/v1"
+    if VM_SCOPES="$(curl -sf -H 'Metadata-Flavor: Google' \
+            "${METADATA_URL}/instance/service-accounts/default/scopes" 2>/dev/null)"; then
+        if ! echo "${VM_SCOPES}" | grep -qF "${REQUIRED_SCOPE}" && \
+           ! echo "${VM_SCOPES}" | grep -qF "${BROAD_SCOPE}"; then
+            echo ""
+            echo "WARNING: The GCE VM's OAuth scopes do not include the Chat API scope." >&2
+            echo "   The chat app will fail with a 403 (ACCESS_TOKEN_SCOPE_INSUFFICIENT) at runtime." >&2
+            echo "" >&2
+            echo "   To fix, stop the VM and add the required scope:" >&2
+            echo "     VM_NAME=\$(hostname)" >&2
+            echo "     VM_ZONE=\$(gcloud compute instances list --filter=\"name=\${VM_NAME}\" --format='value(zone)' --project=${CHAT_APP_PROJECT_ID})" >&2
+            echo "     gcloud compute instances stop \${VM_NAME} --zone=\${VM_ZONE} --project=${CHAT_APP_PROJECT_ID}" >&2
+            echo "     gcloud compute instances set-service-account \${VM_NAME} --zone=\${VM_ZONE} --project=${CHAT_APP_PROJECT_ID} \\" >&2
+            echo "       --scopes=https://www.googleapis.com/auth/cloud-platform" >&2
+            echo "     gcloud compute instances start \${VM_NAME} --zone=\${VM_ZONE} --project=${CHAT_APP_PROJECT_ID}" >&2
+            echo "" >&2
+            echo "   Alternatively, set CHAT_APP_CREDENTIALS in chat-app.env to a service" >&2
+            echo "   account key file path to bypass VM scopes entirely." >&2
+            echo "" >&2
+            read -r -p "Continue installation anyway? [y/N] " REPLY
+            if [[ ! "${REPLY}" =~ ^[Yy]$ ]]; then
+                exit 1
+            fi
+        else
+            substep "VM OAuth scopes include Chat API access"
+        fi
+    else
+        substep "Not running on GCE (metadata unavailable), skipping scope check"
+    fi
+fi
+
+# Check that the Google Chat API is enabled on the project.
+if command -v gcloud &>/dev/null; then
+    if ! gcloud services list --enabled --project="${CHAT_APP_PROJECT_ID}" \
+            --filter="name:chat.googleapis.com" --format="value(name)" 2>/dev/null \
+            | grep -q 'chat.googleapis.com'; then
+        echo "" >&2
+        echo "WARNING: The Google Chat API does not appear to be enabled on project ${CHAT_APP_PROJECT_ID}." >&2
+        echo "   Enable it with:" >&2
+        echo "     gcloud services enable chat.googleapis.com --project=${CHAT_APP_PROJECT_ID}" >&2
+        echo "" >&2
+        read -r -p "Continue installation anyway? [y/N] " REPLY
+        if [[ ! "${REPLY}" =~ ^[Yy]$ ]]; then
+            exit 1
+        fi
+    else
+        substep "Google Chat API is enabled on project ${CHAT_APP_PROJECT_ID}"
+    fi
+else
+    substep "gcloud CLI not found, skipping API enablement check"
+fi
+
 step "Installing scion-chat-app"
 
 # ---------------------------------------------------------------------------

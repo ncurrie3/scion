@@ -17,6 +17,7 @@ package googlechat
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -87,7 +88,29 @@ func PreflightAuth(ctx context.Context, credentialsFile, projectID string, log *
 		return fmt.Errorf("token preflight: %w", tokenErr)
 	}
 
-	log.Info("Chat API credential preflight passed", "token_expiry", tok.Expiry)
+	log.Info("Chat API token obtained", "token_expiry", tok.Expiry)
+
+	// Make a lightweight API call to verify the token's scopes are sufficient.
+	// A token can be valid but lack the chat.bot scope (common with GCE default
+	// scopes), which only surfaces as a 403 at runtime.
+	client := oauth2.NewClient(ctx, creds.TokenSource)
+	resp, apiErr := client.Get("https://chat.googleapis.com/v1/spaces?pageSize=1")
+	if apiErr != nil {
+		log.Error("Chat API preflight request failed", "error", apiErr)
+		logRemediationSteps(credentialsFile, projectID, log)
+		return fmt.Errorf("API preflight: %w", apiErr)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusForbidden {
+		body, _ := io.ReadAll(resp.Body)
+		log.Error("Chat API preflight failed — insufficient scopes or permissions",
+			"status", resp.StatusCode, "response", string(body))
+		logRemediationSteps(credentialsFile, projectID, log)
+		return fmt.Errorf("API preflight: Chat API returned 403 — check OAuth scopes and IAM roles")
+	}
+
+	log.Info("Chat API credential preflight passed")
 	return nil
 }
 
