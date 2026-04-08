@@ -59,8 +59,8 @@ The template uses the **generic** harness with `args` set to `["python", "-m", "
 When scion launches this agent inside a container:
 
 1. **sciontool** runs as PID 1 and supervises the agent process.
-2. The agent writes transient status updates (`THINKING`, `EXECUTING`, `IDLE`) to `$HOME/agent-info.json` via ADK callbacks.
-3. Sticky status transitions (`WAITING_FOR_INPUT`, `COMPLETED`) go through `sciontool status` which also reports to the scion Hub.
+2. The agent writes transient activity updates (`thinking`, `executing`, `idle`) to `$HOME/agent-info.json` via ADK callbacks.
+3. Sticky activity transitions (`waiting_for_input`, `blocked`, `completed`, `limits_exceeded`) go through `sciontool status` which also reports to the scion Hub.
 4. **Message delivery** works natively: `scion message` sends text via tmux `send-keys` into ADK's `input()` loop.
 
 ### Status Lifecycle
@@ -69,23 +69,26 @@ When scion launches this agent inside a container:
 User sends message
     │
     ▼
-THINKING          ← before_agent_callback
+thinking          ← before_agent_callback
     │
-    ├──► EXECUTING    ← before_tool_callback (file_write, etc.)
+    ├──► executing    ← before_tool_callback (file_write, etc.)
     │        │
     │        ▼
-    │    THINKING     ← after_tool_callback
+    │    thinking     ← after_tool_callback
     │        │
     │   (more tools...)
     │
     ▼
-IDLE              ← after_agent_callback
+idle              ← after_agent_callback
 
 If agent calls sciontool_status("task_completed", ...):
-    → COMPLETED (sticky — survives subsequent transient updates)
+    → completed (sticky — survives subsequent transient updates)
 
 If agent calls sciontool_status("ask_user", ...):
-    → WAITING_FOR_INPUT (sticky — cleared when user responds)
+    → waiting_for_input (sticky — cleared when user responds)
+
+If agent calls sciontool_status("blocked", ...):
+    → blocked (sticky — cleared when user responds)
 ```
 
 ## Auth Bridging
@@ -99,7 +102,7 @@ For Vertex AI, set `GOOGLE_GENAI_USE_VERTEXAI=true` and configure Application De
 | Tool | Purpose |
 |---|---|
 | `file_write(file_path, content)` | Write a file to the workspace. Paths are resolved relative to `/workspace` (or CWD). Enforces workspace boundary. |
-| `sciontool_status(status_type, message)` | Signal `task_completed` or `ask_user` to scion. |
+| `sciontool_status(status_type, message)` | Signal `ask_user`, `blocked`, `task_completed`, or `limits_exceeded` to scion. |
 
 ## Project Structure
 
@@ -111,7 +114,7 @@ adk_scion_agent/
 ├── run.py             # Custom runner with --input flag support
 ├── agent.py           # root_agent definition, auth bridging, model config
 ├── tools.py           # file_write and sciontool_status tools
-├── callbacks.py       # ADK callbacks → scion status updates
+├── callbacks.py       # ADK callbacks → scion activity updates
 ├── sciontool.py       # Low-level sciontool subprocess wrapper
 ├── .env.example       # Environment variable template
 ├── README.md          # This file

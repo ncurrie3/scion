@@ -17,10 +17,10 @@
 This module provides two mechanisms for reporting agent status:
 
 1. write_agent_status() — writes directly to $HOME/agent-info.json for transient
-   states (THINKING, EXECUTING, IDLE). Uses atomic rename to prevent corruption.
+   states (thinking, executing, idle). Uses atomic rename to prevent corruption.
 
 2. run_status() — invokes `sciontool status <type> <message>` for sticky states
-   (ask_user → WAITING_FOR_INPUT, task_completed → COMPLETED). The CLI handles
+   (ask_user → waiting_for_input, task_completed → completed). The CLI handles
    hub reporting and logging in addition to the local file update.
 
 All functions degrade gracefully when running outside a scion container (i.e.,
@@ -40,8 +40,9 @@ logger = logging.getLogger(__name__)
 _sciontool_path: str | None = None
 _sciontool_searched: bool = False
 
-# Sticky statuses that should not be overwritten by transient updates.
-_STICKY_STATUSES = frozenset({"WAITING_FOR_INPUT", "COMPLETED", "LIMITS_EXCEEDED"})
+# Sticky activities that should not be overwritten by transient updates.
+# These match the lowercase activity values used by scion's StatusHandler.
+_STICKY_ACTIVITIES = frozenset({"waiting_for_input", "blocked", "completed", "limits_exceeded"})
 
 
 def _find_sciontool() -> str | None:
@@ -62,33 +63,34 @@ def _agent_info_path() -> Path:
     return Path(os.environ.get("HOME", "/home/scion")) / "agent-info.json"
 
 
-def _read_current_status() -> str | None:
-    """Read the current status from agent-info.json, or None if unavailable."""
+def _read_current_activity() -> str | None:
+    """Read the current activity from agent-info.json, or None if unavailable."""
     try:
         path = _agent_info_path()
         if path.exists():
             data = json.loads(path.read_text())
-            return data.get("status")
+            return data.get("activity")
     except Exception:
         pass
     return None
 
 
-def write_agent_status(status: str) -> None:
-    """Write a transient status to agent-info.json via atomic rename.
+def write_agent_status(activity: str) -> None:
+    """Write a transient activity to agent-info.json via atomic rename.
 
-    Respects sticky status semantics — will not overwrite WAITING_FOR_INPUT,
-    COMPLETED, or LIMITS_EXCEEDED.
+    Respects sticky activity semantics — will not overwrite waiting_for_input,
+    blocked, completed, or limits_exceeded.
 
     Args:
-        status: One of THINKING, EXECUTING, IDLE (or other transient states).
+        activity: One of "thinking", "executing", "idle" (or other transient
+            activities). Values are lowercase to match scion's StatusHandler.
     """
     try:
-        current = _read_current_status()
-        if current in _STICKY_STATUSES:
+        current = _read_current_activity()
+        if current in _STICKY_ACTIVITIES:
             logger.debug(
-                "Skipping transient status %s — current sticky status is %s",
-                status,
+                "Skipping transient activity %s — current sticky activity is %s",
+                activity,
                 current,
             )
             return
@@ -103,8 +105,9 @@ def write_agent_status(status: str) -> None:
         except Exception:
             pass
 
-        existing["status"] = status
-        # Clean up legacy field if present.
+        existing["activity"] = activity
+        # Clean up legacy fields if present.
+        existing.pop("status", None)
         existing.pop("sessionStatus", None)
 
         # Atomic write: write to temp file in the same directory, then rename.
@@ -123,9 +126,9 @@ def write_agent_status(status: str) -> None:
                 pass
             raise
 
-        logger.debug("Updated agent-info.json status to %s", status)
+        logger.debug("Updated agent-info.json activity to %s", activity)
     except Exception:
-        logger.warning("Failed to write agent status %s", status, exc_info=True)
+        logger.warning("Failed to write agent activity %s", activity, exc_info=True)
 
 
 def run_status(status_type: str, message: str) -> None:
@@ -135,7 +138,8 @@ def run_status(status_type: str, message: str) -> None:
     local agent-info.json update (ask_user, task_completed, limits_exceeded).
 
     Args:
-        status_type: One of "ask_user", "task_completed", "limits_exceeded".
+        status_type: One of "ask_user", "blocked", "task_completed",
+            "limits_exceeded".
         message: A human-readable message describing the status change.
     """
     binary = _find_sciontool()

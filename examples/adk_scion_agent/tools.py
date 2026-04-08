@@ -87,13 +87,14 @@ def sciontool_status(status_type: str, message: str) -> dict:
     """Signal a lifecycle event to scion's orchestration layer.
 
     Args:
-        status_type: Either "task_completed" or "ask_user".
-        message: A description of the event (task summary or question).
+        status_type: One of "ask_user", "blocked", "task_completed", or
+            "limits_exceeded".
+        message: A description of the event (task summary, question, or reason).
 
     Returns:
         A dict confirming the status update.
     """
-    valid_types = {"task_completed", "ask_user"}
+    valid_types = {"ask_user", "blocked", "task_completed", "limits_exceeded"}
     if status_type not in valid_types:
         return {
             "status": "error",

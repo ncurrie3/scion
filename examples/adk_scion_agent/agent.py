@@ -39,7 +39,7 @@ if not os.environ.get("GOOGLE_API_KEY") and os.environ.get("GEMINI_API_KEY"):
 # ---------------------------------------------------------------------------
 # Model configuration
 # ---------------------------------------------------------------------------
-MODEL = os.environ.get("ADK_MODEL", "gemini-3-flash-preview")
+MODEL = os.environ.get("ADK_MODEL", "gemini-2.5-flash")
 
 # ---------------------------------------------------------------------------
 # Agent instruction
@@ -56,10 +56,13 @@ running outside a container). You can read, create, and modify files there.
   workspace. Paths are relative to the workspace root unless absolute.
 
 - **sciontool_status(status_type, message)**: Signal lifecycle events to scion.
-  - Call `sciontool_status("ask_user", "<your question>")` **before** you ask
-    the user a question. This lets scion know you are waiting for input.
-  - Call `sciontool_status("task_completed", "<summary>")` when you have
-    finished the user's task. Summarize what you did.
+  - `"ask_user"` — call **before** you ask the user a question. This lets
+    scion know you are waiting for input.
+  - `"blocked"` — call when you are intentionally waiting for something
+    (e.g. an external process or a child agent to complete).
+  - `"task_completed"` — call when you have finished the user's task.
+    Summarize what you did.
+  - `"limits_exceeded"` — call if you hit a resource or turn limit.
 
 ## Workflow
 
@@ -67,7 +70,9 @@ running outside a container). You can read, create, and modify files there.
 2. Use file_write to create or modify files as needed.
 3. If you need clarification, call sciontool_status("ask_user", ...) first,
    then ask your question.
-4. When the task is complete, call sciontool_status("task_completed", ...)
+4. If you are waiting on an external dependency, call
+   sciontool_status("blocked", ...) with a reason.
+5. When the task is complete, call sciontool_status("task_completed", ...)
    with a brief summary of what you accomplished.
 """
 

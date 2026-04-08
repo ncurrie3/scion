@@ -77,7 +77,8 @@ async def _run(initial_message: str | None) -> None:
             break
         await send(query)
 
-    await runner.close()
+    if hasattr(runner, "close"):
+        await runner.close()
 
 
 def main() -> None:
