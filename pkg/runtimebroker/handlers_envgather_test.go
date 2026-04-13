@@ -476,7 +476,7 @@ runtimes:
 		"requestId": "req-idempotent-1",
 		"name": "test-agent-idem",
 		"id": "agent-uuid-idem",
-		"grovePath": "%s",
+		"grovePath": %q,
 		"config": {"template": "claude"}
 	}`, groveDir)
 	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/agents", strings.NewReader(body))
