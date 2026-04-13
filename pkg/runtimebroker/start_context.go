@@ -184,12 +184,7 @@ func (s *Server) buildStartContext(ctx context.Context, in startContextInputs) (
 	// --- Build merged environment ---
 	env := make(map[string]string)
 
-	// 1. Resolved env from Hub
-	for k, v := range in.ResolvedEnv {
-		env[k] = v
-	}
-
-	// 2. Config.Env (takes precedence)
+	// 1. Config.Env
 	if in.Config != nil {
 		for _, e := range in.Config.Env {
 			parts := strings.SplitN(e, "=", 2)
@@ -197,6 +192,11 @@ func (s *Server) buildStartContext(ctx context.Context, in startContextInputs) (
 				env[parts[0]] = parts[1]
 			}
 		}
+	}
+
+	// 2. Resolved env from Hub (takes precedence to preserve resolved variables)
+	for k, v := range in.ResolvedEnv {
+		env[k] = v
 	}
 
 	// 3. Hub auth token
