@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -2034,6 +2035,13 @@ func (s *Server) resolveRuntimeForAgent(ctx context.Context, id, groveID string)
 // is used. This ensures the broker respects the grove's configured runtime
 // even when no explicit --profile flag is passed.
 func (s *Server) resolveManagerForOpts(opts api.StartOptions) agent.Manager {
+	if s.config.ForceRuntime != "" {
+		if s.config.ForceRuntime == s.runtime.Name() {
+			return s.manager
+		}
+		slog.Warn("ForceRuntime does not match default runtime, falling back to settings resolution", "force", s.config.ForceRuntime, "default", s.runtime.Name())
+	}
+
 	// Load settings to check if the profile/active-profile specifies a
 	// different runtime than the broker's auto-detected default.
 	projectDir, _ := config.GetResolvedProjectDir(opts.GrovePath)

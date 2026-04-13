@@ -94,10 +94,44 @@ func (m *mockManager) Watch(ctx context.Context, agentID string) (<-chan api.Sta
 
 func (m *mockManager) Close() {}
 
-func newTestServer() *Server {
+func newTestServer(t *testing.T) *Server {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+
+	// Isolate from repo .scion by changing CWD to a temp dir containing its own .scion
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpDir := t.TempDir()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(origWd)
+	})
+
+	dotScion := filepath.Join(tmpDir, ".scion")
+	if err := os.Mkdir(dotScion, 0755); err != nil {
+		t.Fatal(err)
+	}
+	settingsYAML := `schema_version: "1"
+active_profile: local
+profiles:
+    local:
+        runtime: mock
+runtimes:
+    mock:
+        type: mock
+`
+	if err := os.WriteFile(filepath.Join(dotScion, "settings.yaml"), []byte(settingsYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
 	cfg := DefaultServerConfig()
 	cfg.BrokerID = "test-broker-id"
 	cfg.BrokerName = "test-host"
+	cfg.ForceRuntime = "mock"
 
 	mgr := &mockManager{
 		agents: []api.AgentInfo{
@@ -123,7 +157,7 @@ func newTestServer() *Server {
 }
 
 func TestHealthz(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
 	w := httptest.NewRecorder()
@@ -145,7 +179,7 @@ func TestHealthz(t *testing.T) {
 }
 
 func TestReadyz(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/readyz", nil)
 	w := httptest.NewRecorder()
@@ -158,7 +192,7 @@ func TestReadyz(t *testing.T) {
 }
 
 func TestHostInfo(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/info", nil)
 	w := httptest.NewRecorder()
@@ -184,7 +218,7 @@ func TestHostInfo(t *testing.T) {
 }
 
 func TestListAgents(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents", nil)
 	w := httptest.NewRecorder()
@@ -210,7 +244,7 @@ func TestListAgents(t *testing.T) {
 }
 
 func TestListAgentsIncludesAuxiliaryRuntimes(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	// Add an auxiliary runtime with a K8s agent not on the default runtime
 	auxMgr := &mockManager{
@@ -262,7 +296,7 @@ func TestListAgentsIncludesAuxiliaryRuntimes(t *testing.T) {
 }
 
 func TestListAgentsDeduplicatesAcrossRuntimes(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	// Add an auxiliary runtime that has an agent with the same name as one on the default runtime
 	auxMgr := &mockManager{
@@ -297,7 +331,7 @@ func TestListAgentsDeduplicatesAcrossRuntimes(t *testing.T) {
 }
 
 func TestGetAgent(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents/test-agent-1", nil)
 	w := httptest.NewRecorder()
@@ -319,7 +353,7 @@ func TestGetAgent(t *testing.T) {
 }
 
 func TestGetAgentNotFound(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents/nonexistent", nil)
 	w := httptest.NewRecorder()
@@ -332,7 +366,7 @@ func TestGetAgentNotFound(t *testing.T) {
 }
 
 func TestCreateAgent(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	body := `{"name": "new-agent", "config": {"template": "claude"}}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/agents", strings.NewReader(body))
@@ -360,7 +394,7 @@ func TestCreateAgent(t *testing.T) {
 }
 
 func TestCreateAgentMissingName(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	body := `{}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/agents", strings.NewReader(body))
@@ -375,7 +409,7 @@ func TestCreateAgentMissingName(t *testing.T) {
 }
 
 func TestStopAgent(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/agents/test-agent-1/stop", nil)
 	w := httptest.NewRecorder()
@@ -388,7 +422,7 @@ func TestStopAgent(t *testing.T) {
 }
 
 func TestRestartAgent(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 	mgr := srv.manager.(*mockManager)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/agents/test-agent-1/restart", nil)
@@ -410,7 +444,7 @@ func TestRestartAgent(t *testing.T) {
 }
 
 func TestRestartAgent_StartFailure(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 	mgr := srv.manager.(*mockManager)
 	mgr.startErr = fmt.Errorf("boom")
 
@@ -430,7 +464,7 @@ func TestRestartAgent_StartFailure(t *testing.T) {
 }
 
 func TestRestartAgent_StopFailureTolerated(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 	mgr := srv.manager.(*mockManager)
 	// Simulate podman returning an error when stopping an already-exited container
 	mgr.stopErr = fmt.Errorf("podman stop test-agent-1 failed: exit status 125: Error: can only stop running containers: test-agent-1 is not running")
@@ -452,7 +486,7 @@ func TestRestartAgent_StopFailureTolerated(t *testing.T) {
 }
 
 func TestRestartAgent_BrokerModeSet(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 	mgr := srv.manager.(*mockManager)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/agents/test-agent-1/restart", nil)
@@ -492,7 +526,7 @@ func TestIsContainerStopTolerable(t *testing.T) {
 }
 
 func TestMethodNotAllowed(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	// PUT on /api/v1/agents should not be allowed
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/agents", nil)
@@ -506,7 +540,7 @@ func TestMethodNotAllowed(t *testing.T) {
 }
 
 func TestAgentLogsAllowsGet(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/agents/test-agent-1/logs", nil)
 	w := httptest.NewRecorder()
@@ -542,6 +576,7 @@ func newTestServerWithEnvCapture() (*Server, *envCapturingManager) {
 	cfg.BrokerID = "test-broker-id"
 	cfg.BrokerName = "test-host"
 	cfg.Debug = true
+	cfg.ForceRuntime = "mock"
 
 	mgr := &envCapturingManager{}
 
@@ -770,6 +805,7 @@ func newTestServerWithProvisionCapture() (*Server, *provisionCapturingManager) {
 	cfg := DefaultServerConfig()
 	cfg.BrokerID = "test-broker-id"
 	cfg.BrokerName = "test-host"
+	cfg.ForceRuntime = "mock"
 
 	mgr := &provisionCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -1065,7 +1101,7 @@ func TestCreateAgentWithoutCreatorName(t *testing.T) {
 }
 
 func TestStartAgentEndpoint(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/agents/test-agent-1/start", nil)
 	w := httptest.NewRecorder()
@@ -1298,6 +1334,7 @@ func TestCreateAgentHubNativeGroveSettingsEndpoint(t *testing.T) {
 	cfg.BrokerName = "test-host"
 	cfg.HubEndpoint = "http://localhost:9810" // broker's default (combo mode)
 	cfg.Debug = true
+	cfg.ForceRuntime = "mock"
 
 	mgr := &envCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -1407,6 +1444,7 @@ func TestCreateAgentContainerHubEndpointOverride(t *testing.T) {
 		cfg.BrokerName = "test-host"
 		cfg.Debug = true
 		cfg.ContainerHubEndpoint = "http://host.containers.internal:8080"
+		cfg.ForceRuntime = "mock"
 
 		mgr := &envCapturingManager{}
 		rt := &runtime.MockRuntime{}
@@ -1445,6 +1483,7 @@ func TestCreateAgentContainerHubEndpointOverride(t *testing.T) {
 		cfg.BrokerName = "test-host"
 		cfg.Debug = true
 		cfg.ContainerHubEndpoint = "http://host.containers.internal:8080"
+		cfg.ForceRuntime = "mock"
 
 		mgr := &envCapturingManager{}
 		rt := &runtime.MockRuntime{}
@@ -1514,6 +1553,7 @@ hub:
 		cfg.BrokerID = "test-broker-id"
 		cfg.BrokerName = "test-host"
 		cfg.ContainerHubEndpoint = "http://host.containers.internal:8080"
+		cfg.ForceRuntime = "mock"
 
 		mgr := &envCapturingManager{}
 		rt := &runtime.MockRuntime{}
@@ -1544,6 +1584,7 @@ hub:
 		cfg.BrokerID = "test-broker-id"
 		cfg.BrokerName = "test-host"
 		cfg.ContainerHubEndpoint = "http://host.containers.internal:8080"
+		cfg.ForceRuntime = "kubernetes"
 
 		mgr := &envCapturingManager{}
 		rt := &runtime.MockRuntime{
@@ -1583,6 +1624,7 @@ func TestCreateAgentConnectionHubEndpoint(t *testing.T) {
 		cfg.BrokerName = "test-host"
 		cfg.HubEndpoint = "http://localhost:8080" // broker's own local hub
 		cfg.ContainerHubEndpoint = "http://host.containers.internal:8080"
+		cfg.ForceRuntime = "mock"
 
 		mgr := &envCapturingManager{}
 		rt := &runtime.MockRuntime{}
@@ -1621,6 +1663,7 @@ func TestCreateAgentConnectionHubEndpoint(t *testing.T) {
 		cfg := DefaultServerConfig()
 		cfg.BrokerID = "test-broker-id"
 		cfg.BrokerName = "test-host"
+		cfg.ForceRuntime = "mock"
 
 		mgr := &envCapturingManager{}
 		rt := &runtime.MockRuntime{}
@@ -1678,6 +1721,7 @@ func newTestServerWithGitCloneCapture() (*Server, *gitCloneCapturingManager) {
 	cfg.BrokerID = "test-broker-id"
 	cfg.BrokerName = "test-host"
 	cfg.Debug = true
+	cfg.ForceRuntime = "mock"
 
 	mgr := &gitCloneCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -1910,6 +1954,7 @@ runtimes:
 	}
 
 	srv, _ := newTestServerWithProvisionCapture()
+	srv.config.ForceRuntime = ""
 
 	opts := api.StartOptions{
 		Name:      "test-agent",
@@ -2150,6 +2195,7 @@ func TestStartAgentGroveSettingsFallbackHubEndpoint(t *testing.T) {
 		cfg.BrokerName = "test-host"
 		cfg.HubEndpoint = "http://localhost:9810"
 		cfg.Debug = true
+		cfg.ForceRuntime = "mock"
 
 		mgr := &provisionCapturingManager{}
 		rt := &runtime.MockRuntime{}
@@ -2195,6 +2241,7 @@ func TestStartAgentGroveSettingsFallbackHubEndpoint(t *testing.T) {
 		cfg.BrokerName = "test-host"
 		cfg.HubEndpoint = "http://localhost:9810"
 		cfg.Debug = true
+		cfg.ForceRuntime = "mock"
 
 		mgr := &provisionCapturingManager{}
 		rt := &runtime.MockRuntime{}
@@ -2245,6 +2292,7 @@ func TestStartAgentBrokerConfigUsedWhenNoGroveSettings(t *testing.T) {
 	cfg.BrokerName = "test-host"
 	cfg.HubEndpoint = "http://localhost:9810"
 	cfg.Debug = true
+	cfg.ForceRuntime = "mock"
 
 	mgr := &provisionCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -2287,6 +2335,7 @@ func TestStartAgentResolvedEnvHubEndpointFallback(t *testing.T) {
 	cfg.BrokerName = "test-host"
 	cfg.HubEndpoint = "" // Standalone broker without hub endpoint config
 	cfg.Debug = true
+	cfg.ForceRuntime = "mock"
 
 	mgr := &provisionCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -2322,6 +2371,7 @@ func TestStartAgentResolvedEnvHubURLFallback(t *testing.T) {
 	cfg.BrokerName = "test-host"
 	cfg.HubEndpoint = ""
 	cfg.Debug = true
+	cfg.ForceRuntime = "mock"
 
 	mgr := &provisionCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -2360,6 +2410,7 @@ func TestStartAgentResolvedEnvHubEndpointWithContainerOverride(t *testing.T) {
 	cfg.HubEndpoint = ""                                              // No broker-level hub endpoint
 	cfg.ContainerHubEndpoint = "http://host.containers.internal:9810" // But has container override
 	cfg.Debug = true
+	cfg.ForceRuntime = "mock"
 
 	mgr := &provisionCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -2399,6 +2450,7 @@ func TestCreateAgentPortPreservedAcrossBridge(t *testing.T) {
 	// from a standalone hub port (9810), but the hub actually serves on
 	// the web port (8080) in combo mode.
 	cfg.ContainerHubEndpoint = "http://host.containers.internal:9810"
+	cfg.ForceRuntime = "mock"
 
 	mgr := &envCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -2623,7 +2675,7 @@ func TestCreateAgentGroveSlugInitializesScionDir(t *testing.T) {
 // ============================================================================
 
 func TestDeleteGrove_RemovesDirectory(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	// Create a temporary groves directory structure
 	tmpHome := t.TempDir()
@@ -2659,7 +2711,7 @@ func TestDeleteGrove_RemovesDirectory(t *testing.T) {
 }
 
 func TestDeleteGrove_NonExistent_Returns204(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	tmpHome := t.TempDir()
 	// Create the groves parent but NOT the specific grove directory
@@ -2680,7 +2732,7 @@ func TestDeleteGrove_NonExistent_Returns204(t *testing.T) {
 }
 
 func TestDeleteGrove_PathTraversal_Blocked(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	tmpHome := t.TempDir()
 	t.Setenv("HOME", tmpHome)

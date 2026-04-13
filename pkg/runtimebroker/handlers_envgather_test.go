@@ -16,6 +16,7 @@ package runtimebroker
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -71,6 +72,7 @@ func newTestServerWithGrovePath(t *testing.T, settingsYAML string) (*Server, *en
 	cfg.BrokerName = "test-host"
 	cfg.Debug = true
 	cfg.StateDir = t.TempDir()
+	cfg.ForceRuntime = "mock"
 
 	mgr := &envCapturingManager{}
 	rt := &runtime.MockRuntime{}
@@ -401,6 +403,7 @@ profiles:
 	cfg.BrokerName = "test-host"
 	cfg.Debug = true
 	cfg.StateDir = stateDir
+	cfg.ForceRuntime = "mock"
 
 	createMgr := &envCapturingManager{}
 	srv1 := New(cfg, createMgr, &runtime.MockRuntime{})
@@ -437,20 +440,36 @@ profiles:
 }
 
 func TestCreateAgent_IdempotentByRequestID(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	cfg := DefaultServerConfig()
 	cfg.BrokerID = "test-broker-id"
 	cfg.BrokerName = "test-host"
 	cfg.Debug = true
 	cfg.StateDir = t.TempDir()
+	cfg.ForceRuntime = "mock"
+	groveDir := t.TempDir()
+	settingsYAML := `schema_version: "1"
+active_profile: local
+profiles:
+    local:
+        runtime: mock
+runtimes:
+    mock:
+        type: mock
+`
+	if err := os.WriteFile(filepath.Join(groveDir, "settings.yaml"), []byte(settingsYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
 	mgr := &envCapturingManager{}
 	srv := New(cfg, mgr, &runtime.MockRuntime{})
 
-	body := `{
+	body := fmt.Sprintf(`{
 		"requestId": "req-idempotent-1",
 		"name": "test-agent-idem",
 		"id": "agent-uuid-idem",
+		"grovePath": "%s",
 		"config": {"template": "claude"}
-	}`
+	}`, groveDir)
 	req1 := httptest.NewRequest(http.MethodPost, "/api/v1/agents", strings.NewReader(body))
 	req1.Header.Set("Content-Type", "application/json")
 	w1 := httptest.NewRecorder()
@@ -502,6 +521,7 @@ func newTestServerWithHarnessConfig(t *testing.T, harnessConfigName, configYAML,
 	cfg.BrokerName = "test-host"
 	cfg.Debug = true
 	cfg.StateDir = t.TempDir()
+	cfg.ForceRuntime = "mock"
 
 	mgr := &envCapturingManager{}
 	rt := &runtime.MockRuntime{}

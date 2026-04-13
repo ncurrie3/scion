@@ -57,6 +57,7 @@ func newTestServerWithInMemoryCreds(creds *brokercredentials.BrokerCredentials) 
 	cfg.InMemoryCredentials = creds
 	// Most tests in this file focus on hub connection behavior, not auth gates.
 	cfg.BrokerAuthEnabled = false
+	cfg.ForceRuntime = "mock"
 
 	mgr := &mockManager{}
 	rt := &runtime.MockRuntime{}
@@ -581,7 +582,7 @@ func TestGlobalGroveRejection_GitGroveWithGroveID_NoPath_MultiHub(t *testing.T) 
 }
 
 func TestIsMultiHubMode(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	// No connections = not multi-hub
 	if srv.isMultiHubMode() {
@@ -608,7 +609,7 @@ func TestIsMultiHubMode(t *testing.T) {
 }
 
 func TestIsGlobalGrove(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	tests := []struct {
 		name      string
@@ -907,7 +908,7 @@ func TestValidateBrokerAuthStartup_NonLoopbackPermissiveModeFails(t *testing.T) 
 }
 
 func TestGetFirstHeartbeat_NoConnections(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	hb := srv.getFirstHeartbeat()
 	if hb != nil {
@@ -1359,7 +1360,7 @@ func TestColocated_MultipleRemoteConnections(t *testing.T) {
 
 func TestLogHubConnections_NoConnections(t *testing.T) {
 	// Verify logHubConnections doesn't panic with no connections
-	srv := newTestServer()
+	srv := newTestServer(t)
 	srv.logHubConnections() // should not panic
 }
 
@@ -1538,7 +1539,7 @@ func TestHandleHubConnections_ColocatedFlag(t *testing.T) {
 }
 
 func TestHandleHubConnections_NoConnections(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/hub-connections", nil)
 	w := httptest.NewRecorder()
@@ -1564,7 +1565,7 @@ func TestHandleHubConnections_NoConnections(t *testing.T) {
 }
 
 func TestHandleHubConnections_MethodNotAllowed(t *testing.T) {
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/hub-connections", nil)
 	w := httptest.NewRecorder()
@@ -1618,7 +1619,7 @@ func TestHydrateTemplate_ColocatedPassthrough(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	// Create a co-located connection with TemplatesDir set
 	conn := &HubConnection{
@@ -1646,7 +1647,7 @@ func TestHydrateTemplate_ColocatedFallsBackWhenMissing(t *testing.T) {
 	templatesDir := t.TempDir()
 	// Don't create the template directory — it doesn't exist locally
 
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	conn := &HubConnection{
 		Name:         "local",
@@ -1678,7 +1679,7 @@ func TestHydrateTemplate_NonColocatedSkipsPassthrough(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	srv := newTestServer()
+	srv := newTestServer(t)
 
 	// Non-colocated connection — should NOT use passthrough even with TemplatesDir set
 	conn := &HubConnection{

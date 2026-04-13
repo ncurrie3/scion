@@ -76,6 +76,7 @@ func TestLoadGlobalConfigDefaults(t *testing.T) {
 }
 
 func TestLoadGlobalConfigFromFile(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	// Create a temporary config file
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "server.yaml")
@@ -132,6 +133,7 @@ logFormat: json
 }
 
 func TestLoadGlobalConfigFromDirectory(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	// Create a temporary directory with config file
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "server.yaml")
@@ -359,6 +361,7 @@ func TestLoadGlobalConfigOAuthEnvOverride(t *testing.T) {
 // TestHubEndpointConfiguration tests the Hub endpoint configuration from file and env.
 // This verifies Fix 2 from progress-report.md: Hub config includes endpoint field.
 func TestHubEndpointConfiguration(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	t.Run("default is empty", func(t *testing.T) {
 		cfg := DefaultGlobalConfig()
 		if cfg.Hub.Endpoint != "" {
@@ -431,6 +434,7 @@ hub:
 // TestRuntimeBrokerHubEndpointConfiguration tests RuntimeBroker hubEndpoint config.
 // This relates to Fix 4/6 in progress-report.md: RuntimeBroker hub endpoint configuration.
 func TestRuntimeBrokerHubEndpointConfiguration(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	t.Run("from config file", func(t *testing.T) {
 		tmpDir := t.TempDir()
 		configPath := filepath.Join(tmpDir, "server.yaml")
@@ -468,6 +472,7 @@ runtimeBroker:
 
 // TestContainerHubEndpointConfiguration tests the ContainerHubEndpoint config field.
 func TestContainerHubEndpointConfiguration(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	t.Run("default is empty", func(t *testing.T) {
 		cfg := DefaultGlobalConfig()
 		if cfg.RuntimeBroker.ContainerHubEndpoint != "" {

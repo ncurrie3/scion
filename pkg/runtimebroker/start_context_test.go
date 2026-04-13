@@ -26,6 +26,45 @@ import (
 	"github.com/GoogleCloudPlatform/scion/pkg/runtime"
 )
 
+func newTestServerForStartContext(t *testing.T, cfg ServerConfig) *Server {
+	t.Helper()
+	t.Setenv("HOME", t.TempDir())
+
+	origWd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	tmpDir := t.TempDir()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(origWd)
+	})
+
+	dotScion := filepath.Join(tmpDir, ".scion")
+	if err := os.Mkdir(dotScion, 0755); err != nil {
+		t.Fatal(err)
+	}
+	settingsYAML := `schema_version: "1"
+active_profile: local
+profiles:
+    local:
+        runtime: mock
+runtimes:
+    mock:
+        type: mock
+`
+	if err := os.WriteFile(filepath.Join(dotScion, "settings.yaml"), []byte(settingsYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg.ForceRuntime = "mock"
+	mgr := &envCapturingManager{}
+	rt := &runtime.MockRuntime{}
+	return New(cfg, mgr, rt)
+}
+
 func TestBuildStartContext_BasicFields(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.BrokerID = "broker-1"
@@ -33,9 +72,7 @@ func TestBuildStartContext_BasicFields(t *testing.T) {
 	cfg.Debug = true
 	cfg.StateDir = t.TempDir()
 
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	r := httptest.NewRequest("POST", "/api/v1/agents", nil)
 	sc, err := srv.buildStartContext(context.Background(), startContextInputs{
@@ -84,9 +121,7 @@ func TestBuildStartContext_BasicFields(t *testing.T) {
 func TestBuildStartContext_EnvMerging(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	r := httptest.NewRequest("POST", "/api/v1/agents", nil)
 	sc, err := srv.buildStartContext(context.Background(), startContextInputs{
@@ -119,9 +154,7 @@ func TestBuildStartContext_EnvMerging(t *testing.T) {
 func TestBuildStartContext_TelemetryOverride(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	r := httptest.NewRequest("POST", "/api/v1/agents", nil)
 	sc, err := srv.buildStartContext(context.Background(), startContextInputs{
@@ -143,9 +176,7 @@ func TestBuildStartContext_TelemetryOverride(t *testing.T) {
 func TestBuildStartContext_ResolvedSecrets(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	secrets := []api.ResolvedSecret{
 		{Name: "API_KEY", Type: "environment", Value: "secret-value"},
@@ -168,9 +199,7 @@ func TestBuildStartContext_ResolvedSecrets(t *testing.T) {
 func TestBuildStartContext_ConfigFields(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	r := httptest.NewRequest("POST", "/api/v1/agents", nil)
 	sc, err := srv.buildStartContext(context.Background(), startContextInputs{
@@ -211,9 +240,7 @@ func TestBuildStartContext_ConfigFields(t *testing.T) {
 func TestBuildStartContext_GitClone(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	r := httptest.NewRequest("POST", "/api/v1/agents", nil)
 	sc, err := srv.buildStartContext(context.Background(), startContextInputs{
@@ -258,9 +285,7 @@ func TestBuildStartContext_GitClone(t *testing.T) {
 func TestBuildStartContext_NilHTTPRequest(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	// Should not panic with nil HTTPRequest
 	sc, err := srv.buildStartContext(context.Background(), startContextInputs{
@@ -277,9 +302,7 @@ func TestBuildStartContext_NilHTTPRequest(t *testing.T) {
 func TestBuildStartContext_AttachMode(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	sc, err := srv.buildStartContext(context.Background(), startContextInputs{
 		Name:   "agent-1",
@@ -296,9 +319,7 @@ func TestBuildStartContext_AttachMode(t *testing.T) {
 func TestBuildStartContext_HubNativeGroveWritesMarker(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	// Simulate a hub-native grove: GroveSlug set, GrovePath pre-resolved
 	// (as the createAgent handler does for env-gather), and GroveID from hub.
@@ -355,9 +376,7 @@ func TestBuildStartContext_HubNativeGroveWritesMarker(t *testing.T) {
 func TestBuildStartContext_HubNativeGroveSlugResolution(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	// Simulate: GroveSlug set, GrovePath empty (buildStartContext resolves it),
 	// GroveID from hub. This is the path when the handler doesn't pre-resolve.
@@ -386,9 +405,7 @@ func TestBuildStartContext_HubNativeGroveSlugResolution(t *testing.T) {
 func TestBuildStartContext_HubNativeGrovePreservesExistingGroveID(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	// Pre-create .scion as a directory with an existing grove-id (git grove)
 	grovePath := filepath.Join(t.TempDir(), "existing-grove")
@@ -424,9 +441,7 @@ func TestBuildStartContext_HubNativeGrovePreservesExistingGroveID(t *testing.T) 
 func TestBuildStartContext_HubNativeGrovePreservesExistingMarker(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	// Pre-create .scion as a marker file (hub-native grove)
 	grovePath := filepath.Join(t.TempDir(), "existing-grove")
@@ -467,9 +482,7 @@ func TestBuildStartContext_HubEndpoint(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.HubEndpoint = "https://hub.example.com"
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	// Without HTTPRequest, uses resolveHubEndpointForStart path
 	sc, err := srv.buildStartContext(context.Background(), startContextInputs{
@@ -489,9 +502,7 @@ func TestBuildStartContext_HubEndpoint(t *testing.T) {
 func TestBuildStartContext_GCPMetadataDefaultBlock(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	r := httptest.NewRequest("POST", "/api/v1/agents", nil)
 
@@ -525,9 +536,7 @@ func TestBuildStartContext_GCPMetadataDefaultBlock(t *testing.T) {
 func TestBuildStartContext_GCPMetadataPassthrough(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	r := httptest.NewRequest("POST", "/api/v1/agents", nil)
 
@@ -559,9 +568,7 @@ func TestBuildStartContext_GCPMetadataPassthrough(t *testing.T) {
 func TestBuildStartContext_GCPMetadataExplicitBlock(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	r := httptest.NewRequest("POST", "/api/v1/agents", nil)
 
@@ -596,9 +603,7 @@ func TestBuildStartContext_GCPMetadataExplicitBlock(t *testing.T) {
 func TestBuildStartContext_GCPMetadataFromResolvedEnv(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	r := httptest.NewRequest("POST", "/api/v1/agents", nil)
 
@@ -633,9 +638,7 @@ func TestBuildStartContext_GCPMetadataFromResolvedEnv(t *testing.T) {
 func TestBuildStartContext_GCPMetadataPassthroughFromResolvedEnv(t *testing.T) {
 	cfg := DefaultServerConfig()
 	cfg.StateDir = t.TempDir()
-	mgr := &envCapturingManager{}
-	rt := &runtime.MockRuntime{}
-	srv := New(cfg, mgr, rt)
+	srv := newTestServerForStartContext(t, cfg)
 
 	r := httptest.NewRequest("POST", "/api/v1/agents", nil)
 

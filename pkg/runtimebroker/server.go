@@ -127,6 +127,10 @@ type ServerConfig struct {
 	// Used as a fallback when resolving workspace paths.
 	WorktreeBase string
 
+	// ForceRuntime overrides profile resolution and forces the specified runtime.
+	// Used in tests to ensure mock runtime is always used.
+	ForceRuntime string
+
 	// StateDir is the directory for broker runtime state (pending env-gather,
 	// dispatch attempts). Defaults to ~/.scion/runtime-broker-state/<broker-id>.
 	StateDir string

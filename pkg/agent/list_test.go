@@ -393,6 +393,7 @@ func TestListReconcilesPhaseWithContainerStatus(t *testing.T) {
 }
 
 func TestListPreservesRuntimeTerminalStateForKubernetes(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	tests := []struct {
 		name            string
 		runtimePhase    string
@@ -459,7 +460,9 @@ func TestListPreservesRuntimeTerminalStateForKubernetes(t *testing.T) {
 			}
 
 			mgr := NewManager(mock)
-			agents, err := mgr.List(context.Background(), nil)
+			agents, err := mgr.List(context.Background(), map[string]string{
+				"scion.grove_path": grovePath,
+			})
 			if err != nil {
 				t.Fatalf("List() error: %v", err)
 			}

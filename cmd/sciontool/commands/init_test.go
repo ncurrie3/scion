@@ -374,6 +374,10 @@ func TestBuildAuthenticatedURL_SpecialCharsInToken(t *testing.T) {
 }
 
 func TestDetectDefaultBranch(t *testing.T) {
+	t.Setenv("GIT_CONFIG_COUNT", "1")
+	t.Setenv("GIT_CONFIG_KEY_0", "safe.bareRepository")
+	t.Setenv("GIT_CONFIG_VALUE_0", "all")
+
 	// Create a bare repo to serve as the "remote"
 	remote := t.TempDir()
 	run := func(args ...string) {

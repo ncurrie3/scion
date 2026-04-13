@@ -3559,6 +3559,7 @@ func TestIsImageRegistryConfigured(t *testing.T) {
 }
 
 func TestRequireImageRegistry_NotConfigured(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	dir := t.TempDir()
 
 	// Create a minimal versioned settings file without image_registry
@@ -3580,6 +3581,7 @@ func TestRequireImageRegistry_NotConfigured(t *testing.T) {
 }
 
 func TestRequireImageRegistry_Configured(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
 	dir := t.TempDir()
 
 	vs := &VersionedSettings{
