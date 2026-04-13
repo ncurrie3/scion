@@ -28,6 +28,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/scion/pkg/store"
 	"github.com/GoogleCloudPlatform/scion/pkg/store/sqlite"
+	"github.com/GoogleCloudPlatform/scion/pkg/util/logging"
 )
 
 func newTestServerWithStore(t *testing.T) (*Server, store.Store) {
@@ -39,7 +40,10 @@ func newTestServerWithStore(t *testing.T) (*Server, store.Store) {
 	if err := s.Migrate(context.Background()); err != nil {
 		t.Fatalf("failed to migrate: %v", err)
 	}
-	srv := &Server{store: s}
+	srv := &Server{
+		store:          s,
+		maintenanceLog: logging.Subsystem("hub.maintenance"),
+	}
 	return srv, s
 }
 

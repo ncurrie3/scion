@@ -25,6 +25,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/scion/pkg/secret"
 	"github.com/GoogleCloudPlatform/scion/pkg/store"
+	"github.com/GoogleCloudPlatform/scion/pkg/util/logging"
 )
 
 // MaintenanceExecutor defines the interface for a runnable maintenance operation.
@@ -149,6 +150,8 @@ type PullImagesExecutor struct {
 }
 
 func (e *PullImagesExecutor) Run(ctx context.Context, logger io.Writer, params map[string]string) error {
+	log := logging.Subsystem("hub.maintenance.pull-images")
+
 	registry := e.registry
 	if v := params["registry"]; v != "" {
 		registry = v
@@ -178,6 +181,10 @@ func (e *PullImagesExecutor) Run(ctx context.Context, logger io.Writer, params m
 		harnesses = []string{"claude", "gemini"}
 	}
 
+	log.Debug("Starting pull-images",
+		"runtime", runtimeBin, "registry", registry, "tag", tag,
+		"harnesses", fmt.Sprint(harnesses))
+
 	fmt.Fprintf(logger, "Using runtime: %s\n", runtimeBin)
 	fmt.Fprintf(logger, "Registry: %s, Tag: %s\n", registry, tag)
 	fmt.Fprintf(logger, "Pulling %d image(s)...\n\n", len(harnesses))
@@ -187,16 +194,19 @@ func (e *PullImagesExecutor) Run(ctx context.Context, logger io.Writer, params m
 	for _, h := range harnesses {
 		image := fmt.Sprintf("%s/scion-%s:%s", registry, h, tag)
 		fmt.Fprintf(logger, "Pulling %s ...\n", image)
+		log.Debug("Pulling image", "image", image)
 
 		cmd := exec.CommandContext(ctx, runtimeBin, "image", "pull", image)
 		cmd.Stdout = logger
 		cmd.Stderr = logger
 		if err := cmd.Run(); err != nil {
 			fmt.Fprintf(logger, "  ERROR: %v\n\n", err)
+			log.Error("Image pull failed", "image", image, "error", err)
 			lastErr = err
 			continue
 		}
 		fmt.Fprintf(logger, "  OK\n\n")
+		log.Debug("Image pulled successfully", "image", image)
 		pulled++
 	}
 
@@ -204,6 +214,7 @@ func (e *PullImagesExecutor) Run(ctx context.Context, logger io.Writer, params m
 	if lastErr != nil && pulled == 0 {
 		return fmt.Errorf("all image pulls failed; last error: %w", lastErr)
 	}
+	log.Info("Pull images complete", "pulled", pulled, "total", len(harnesses))
 	return nil
 }
 
@@ -225,6 +236,8 @@ type RebuildServerExecutor struct {
 }
 
 func (e *RebuildServerExecutor) Run(ctx context.Context, logger io.Writer, params map[string]string) error {
+	log := logging.Subsystem("hub.maintenance.rebuild-server")
+
 	if runtime.GOOS != "linux" {
 		return fmt.Errorf("rebuild-server is only supported on Linux (requires systemd); restart the server manually on %s", runtime.GOOS)
 	}
@@ -242,6 +255,9 @@ func (e *RebuildServerExecutor) Run(ctx context.Context, logger io.Writer, param
 		serviceName = "scion-hub"
 	}
 
+	log.Debug("Starting rebuild-server",
+		"repo_path", repoPath, "binary_dest", binaryDest, "service_name", serviceName)
+
 	steps := []struct {
 		name string
 		cmd  string
@@ -254,8 +270,11 @@ func (e *RebuildServerExecutor) Run(ctx context.Context, logger io.Writer, param
 		{"Restarting service", "systemctl", []string{"restart", serviceName}, ""},
 	}
 
-	for _, step := range steps {
+	for i, step := range steps {
 		fmt.Fprintf(logger, "==> %s\n", step.name)
+		log.Debug("Executing step",
+			"step", i+1, "name", step.name,
+			"cmd", step.cmd, "args", fmt.Sprint(step.args), "dir", step.dir)
 		cmd := exec.CommandContext(ctx, step.cmd, step.args...)
 		if step.dir != "" {
 			cmd.Dir = step.dir
@@ -263,11 +282,16 @@ func (e *RebuildServerExecutor) Run(ctx context.Context, logger io.Writer, param
 		cmd.Stdout = logger
 		cmd.Stderr = logger
 		if err := cmd.Run(); err != nil {
+			log.Error("Step failed",
+				"step", i+1, "name", step.name,
+				"cmd", step.cmd, "args", fmt.Sprint(step.args), "error", err)
 			return fmt.Errorf("%s failed: %w", step.name, err)
 		}
+		log.Debug("Step completed", "step", i+1, "name", step.name)
 		fmt.Fprintln(logger)
 	}
 
+	log.Info("Server rebuild and restart complete")
 	fmt.Fprintln(logger, "Server rebuild and restart complete.")
 	return nil
 }
@@ -278,10 +302,14 @@ type RebuildWebExecutor struct {
 }
 
 func (e *RebuildWebExecutor) Run(ctx context.Context, logger io.Writer, params map[string]string) error {
+	log := logging.Subsystem("hub.maintenance.rebuild-web")
+
 	repoPath := e.repoPath
 	if repoPath == "" {
 		return fmt.Errorf("no repository path configured for rebuild-web")
 	}
+
+	log.Debug("Starting rebuild-web", "repo_path", repoPath)
 
 	steps := []struct {
 		name string
@@ -292,18 +320,25 @@ func (e *RebuildWebExecutor) Run(ctx context.Context, logger io.Writer, params m
 		{"Building web assets", "make", []string{"web"}},
 	}
 
-	for _, step := range steps {
+	for i, step := range steps {
 		fmt.Fprintf(logger, "==> %s\n", step.name)
+		log.Debug("Executing step",
+			"step", i+1, "name", step.name,
+			"cmd", step.cmd, "args", fmt.Sprint(step.args))
 		cmd := exec.CommandContext(ctx, step.cmd, step.args...)
 		cmd.Dir = repoPath
 		cmd.Stdout = logger
 		cmd.Stderr = logger
 		if err := cmd.Run(); err != nil {
+			log.Error("Step failed",
+				"step", i+1, "name", step.name, "error", err)
 			return fmt.Errorf("%s failed: %w", step.name, err)
 		}
+		log.Debug("Step completed", "step", i+1, "name", step.name)
 		fmt.Fprintln(logger)
 	}
 
+	log.Info("Web frontend rebuild complete")
 	fmt.Fprintln(logger, "Web frontend rebuild complete. Changes take effect on the next page load.")
 	return nil
 }

@@ -1017,6 +1017,9 @@ export class ScionPageAdminMaintenance extends LitElement {
                   ? html`<span>by ${op.lastRun.startedBy}</span>`
                   : nothing}
               </div>
+              ${op.lastRun.status === 'failed'
+                ? this.renderLastRunError(op.lastRun)
+                : nothing}
             `
           : html`
               <div class="card-meta">
@@ -1033,6 +1036,13 @@ export class ScionPageAdminMaintenance extends LitElement {
         ${historyExpanded ? this.renderRunHistoryTable(op.key, runs) : nothing}
       </div>
     `;
+  }
+
+  private renderLastRunError(run: MaintenanceRun) {
+    const result = this.parseMigrationResult(run.result);
+    const errorMsg = result?.error;
+    if (!errorMsg) return nothing;
+    return html`<div class="result-log result-error">${errorMsg}</div>`;
   }
 
   private renderRunHistoryTable(key: string, runs: MaintenanceRun[]) {

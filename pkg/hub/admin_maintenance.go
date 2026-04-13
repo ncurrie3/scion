@@ -27,6 +27,12 @@ import (
 	"github.com/GoogleCloudPlatform/scion/pkg/store"
 )
 
+// maintenanceLogAttrs returns common slog attributes for maintenance operation logging.
+func maintenanceLogAttrs(key string, extra ...any) []any {
+	attrs := []any{"operation_key", key}
+	return append(attrs, extra...)
+}
+
 // handleAdminMaintenanceOps handles routes under /api/v1/admin/maintenance/operations.
 func (s *Server) handleAdminMaintenanceOps(w http.ResponseWriter, r *http.Request) {
 	user := GetUserIdentityFromContext(r.Context())
@@ -115,14 +121,19 @@ func (s *Server) handleAdminMaintenanceMigrations(w http.ResponseWriter, r *http
 // executeMigration starts execution of a migration by key.
 func (s *Server) executeMigration(w http.ResponseWriter, r *http.Request, key string, user UserIdentity) {
 	ctx := r.Context()
+	log := s.maintenanceLog
+
+	log.Debug("Execute migration requested", maintenanceLogAttrs(key, "user", user.Email())...)
 
 	// Look up the migration.
 	op, err := s.store.GetMaintenanceOperation(ctx, key)
 	if err != nil {
 		if err == store.ErrNotFound {
+			log.Debug("Migration not found", maintenanceLogAttrs(key)...)
 			writeError(w, http.StatusNotFound, ErrCodeNotFound, "Migration not found", nil)
 			return
 		}
+		log.Error("Failed to get migration from store", maintenanceLogAttrs(key, "error", err)...)
 		writeError(w, http.StatusInternalServerError, ErrCodeInternalError, "Failed to get migration", nil)
 		return
 	}
@@ -156,6 +167,7 @@ func (s *Server) executeMigration(w http.ResponseWriter, r *http.Request, key st
 	// Resolve the executor for this migration key.
 	executor, err := s.resolveMaintenanceExecutor(key)
 	if err != nil {
+		log.Error("Failed to resolve migration executor", maintenanceLogAttrs(key, "error", err)...)
 		writeError(w, http.StatusBadRequest, ErrCodeInvalidRequest, err.Error(), nil)
 		return
 	}
@@ -166,12 +178,32 @@ func (s *Server) executeMigration(w http.ResponseWriter, r *http.Request, key st
 	op.StartedAt = &now
 	op.StartedBy = user.Email()
 	if err := s.store.UpdateMaintenanceOperation(ctx, op); err != nil {
+		log.Error("Failed to update migration status", maintenanceLogAttrs(key, "error", err)...)
 		writeError(w, http.StatusInternalServerError, ErrCodeInternalError, "Failed to update migration status", nil)
 		return
 	}
 
+	log.Info("Migration started", maintenanceLogAttrs(key, "user", user.Email())...)
+
 	// Execute asynchronously.
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("Migration executor panicked", maintenanceLogAttrs(key, "panic", fmt.Sprint(r))...)
+				finishedAt := time.Now()
+				op.CompletedAt = &finishedAt
+				op.Status = store.MaintenanceStatusFailed
+				result := map[string]interface{}{
+					"error": fmt.Sprintf("executor panic: %v", r),
+				}
+				resultJSON, _ := json.Marshal(result)
+				op.Result = string(resultJSON)
+				if err := s.store.UpdateMaintenanceOperation(context.Background(), op); err != nil {
+					log.Error("Failed to update migration after panic", maintenanceLogAttrs(key, "error", err)...)
+				}
+			}
+		}()
+
 		var buf bytes.Buffer
 		execErr := executor.Run(context.Background(), &buf, params)
 
@@ -186,6 +218,8 @@ func (s *Server) executeMigration(w http.ResponseWriter, r *http.Request, key st
 			}
 			resultJSON, _ := json.Marshal(result)
 			op.Result = string(resultJSON)
+			log.Error("Migration failed", maintenanceLogAttrs(key, "error", execErr)...)
+			log.Debug("Migration failure log output", maintenanceLogAttrs(key, "log", buf.String())...)
 		} else {
 			op.Status = store.MaintenanceStatusCompleted
 			result := map[string]interface{}{
@@ -199,9 +233,12 @@ func (s *Server) executeMigration(w http.ResponseWriter, r *http.Request, key st
 			}
 			resultJSON, _ := json.Marshal(result)
 			op.Result = string(resultJSON)
+			log.Info("Migration completed", maintenanceLogAttrs(key, "status", op.Status)...)
 		}
 
-		_ = s.store.UpdateMaintenanceOperation(context.Background(), op)
+		if err := s.store.UpdateMaintenanceOperation(context.Background(), op); err != nil {
+			log.Error("Failed to update migration record", maintenanceLogAttrs(key, "error", err)...)
+		}
 	}()
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{
@@ -212,6 +249,8 @@ func (s *Server) executeMigration(w http.ResponseWriter, r *http.Request, key st
 // resolveMaintenanceExecutor returns the executor for a given operation key.
 func (s *Server) resolveMaintenanceExecutor(key string) (MaintenanceExecutor, error) {
 	mc := s.config.MaintenanceConfig
+	log := s.maintenanceLog
+
 	switch key {
 	case "secret-hub-id-migration":
 		backend := s.GetSecretBackend()
@@ -223,6 +262,9 @@ func (s *Server) resolveMaintenanceExecutor(key string) (MaintenanceExecutor, er
 			secretBackend: backend,
 		}, nil
 	case "pull-images":
+		log.Debug("Resolved pull-images executor",
+			"runtime_bin", mc.RuntimeBin, "registry", mc.ImageRegistry,
+			"tag", mc.ImageTag, "harnesses", fmt.Sprint(mc.Harnesses))
 		return &PullImagesExecutor{
 			runtimeBin: mc.RuntimeBin,
 			registry:   mc.ImageRegistry,
@@ -230,12 +272,16 @@ func (s *Server) resolveMaintenanceExecutor(key string) (MaintenanceExecutor, er
 			harnesses:  mc.Harnesses,
 		}, nil
 	case "rebuild-server":
+		log.Debug("Resolved rebuild-server executor",
+			"repo_path", mc.RepoPath, "binary_dest", mc.BinaryDest,
+			"service_name", mc.ServiceName)
 		return &RebuildServerExecutor{
 			repoPath:    mc.RepoPath,
 			binaryDest:  mc.BinaryDest,
 			serviceName: mc.ServiceName,
 		}, nil
 	case "rebuild-web":
+		log.Debug("Resolved rebuild-web executor", "repo_path", mc.RepoPath)
 		return &RebuildWebExecutor{
 			repoPath: mc.RepoPath,
 		}, nil
@@ -247,20 +293,26 @@ func (s *Server) resolveMaintenanceExecutor(key string) (MaintenanceExecutor, er
 // executeOperation starts execution of a routine operation by key.
 func (s *Server) executeOperation(w http.ResponseWriter, r *http.Request, key string, user UserIdentity) {
 	ctx := r.Context()
+	log := s.maintenanceLog
+
+	log.Debug("Execute operation requested", maintenanceLogAttrs(key, "user", user.Email())...)
 
 	// Look up the operation.
 	op, err := s.store.GetMaintenanceOperation(ctx, key)
 	if err != nil {
 		if err == store.ErrNotFound {
+			log.Debug("Operation not found", maintenanceLogAttrs(key)...)
 			writeError(w, http.StatusNotFound, ErrCodeNotFound, "Operation not found", nil)
 			return
 		}
+		log.Error("Failed to get operation from store", maintenanceLogAttrs(key, "error", err)...)
 		writeError(w, http.StatusInternalServerError, ErrCodeInternalError, "Failed to get operation", nil)
 		return
 	}
 
 	// Verify this is a routine operation, not a migration.
 	if op.Category != store.MaintenanceCategoryOperation {
+		log.Debug("Rejected: operation is a migration", maintenanceLogAttrs(key, "category", op.Category)...)
 		writeError(w, http.StatusBadRequest, ErrCodeInvalidRequest, "This is a migration; use the migrations endpoint", nil)
 		return
 	}
@@ -276,6 +328,7 @@ func (s *Server) executeOperation(w http.ResponseWriter, r *http.Request, key st
 	// Resolve the executor.
 	executor, err := s.resolveMaintenanceExecutor(key)
 	if err != nil {
+		log.Error("Failed to resolve executor", maintenanceLogAttrs(key, "error", err)...)
 		writeError(w, http.StatusBadRequest, ErrCodeInvalidRequest, err.Error(), nil)
 		return
 	}
@@ -291,12 +344,32 @@ func (s *Server) executeOperation(w http.ResponseWriter, r *http.Request, key st
 		StartedBy:    user.Email(),
 	}
 	if err := s.store.CreateMaintenanceRun(ctx, run); err != nil {
+		log.Error("Failed to create run record", maintenanceLogAttrs(key, "error", err)...)
 		writeError(w, http.StatusInternalServerError, ErrCodeInternalError, "Failed to create run record", nil)
 		return
 	}
 
+	log.Info("Operation started", maintenanceLogAttrs(key, "run_id", runID, "user", user.Email())...)
+
 	// Execute asynchronously.
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Error("Operation executor panicked", maintenanceLogAttrs(key, "run_id", runID, "panic", fmt.Sprint(r))...)
+				finishedAt := time.Now()
+				run.CompletedAt = &finishedAt
+				run.Status = store.MaintenanceStatusFailed
+				result := map[string]interface{}{
+					"error": fmt.Sprintf("executor panic: %v", r),
+				}
+				resultJSON, _ := json.Marshal(result)
+				run.Result = string(resultJSON)
+				if err := s.store.UpdateMaintenanceRun(context.Background(), run); err != nil {
+					log.Error("Failed to update run record after panic", maintenanceLogAttrs(key, "run_id", runID, "error", err)...)
+				}
+			}
+		}()
+
 		var buf bytes.Buffer
 		execErr := executor.Run(context.Background(), &buf, params)
 
@@ -311,11 +384,16 @@ func (s *Server) executeOperation(w http.ResponseWriter, r *http.Request, key st
 			}
 			resultJSON, _ := json.Marshal(result)
 			run.Result = string(resultJSON)
+			log.Error("Operation failed", maintenanceLogAttrs(key, "run_id", runID, "error", execErr, "duration", finishedAt.Sub(run.StartedAt))...)
+			log.Debug("Operation failure log output", maintenanceLogAttrs(key, "run_id", runID, "log", buf.String())...)
 		} else {
 			run.Status = store.MaintenanceStatusCompleted
+			log.Info("Operation completed successfully", maintenanceLogAttrs(key, "run_id", runID, "duration", finishedAt.Sub(run.StartedAt))...)
 		}
 
-		_ = s.store.UpdateMaintenanceRun(context.Background(), run)
+		if err := s.store.UpdateMaintenanceRun(context.Background(), run); err != nil {
+			log.Error("Failed to update run record", maintenanceLogAttrs(key, "run_id", runID, "error", err)...)
+		}
 	}()
 
 	writeJSON(w, http.StatusOK, map[string]interface{}{

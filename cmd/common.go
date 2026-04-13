@@ -214,6 +214,7 @@ func CheckHubAvailabilityForAgents(grovePath string, excludedAgents []string, sk
 		AutoConfirm:    autoConfirm,
 		NoHub:          noHub,
 		SkipSync:       skipSync,
+		HubEndpoint:    hubEndpoint,
 		TargetAgent:    targetAgent,
 		ExcludedAgents: excludedAgents,
 	}

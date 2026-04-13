@@ -101,12 +101,23 @@ func resolveHubGroveRef(ref string, opts EnsureHubReadyOptions) (*HubContext, er
 			enabledPtr, hasEndpoint, hasToken, hasAPIKey)
 	}
 
-	if !settings.IsHubEnabled() {
+	hubContext := config.IsHubContext()
+	if opts.HubEndpoint == "" && !settings.IsHubEnabled() && !hubContext {
 		return nil, fmt.Errorf("hub grove references (slugs, names, git URLs) require hub mode to be enabled\n\n" +
 			"Enable with: scion config set hub.enabled true")
 	}
 
-	endpoint := getEndpoint(settings)
+	endpoint := opts.HubEndpoint
+	if endpoint == "" {
+		endpoint = getEndpoint(settings)
+	}
+	// Fallback to environment variables in hub-connected containers
+	if endpoint == "" && hubContext {
+		endpoint = os.Getenv("SCION_HUB_ENDPOINT")
+		if endpoint == "" {
+			endpoint = os.Getenv("SCION_HUB_URL")
+		}
+	}
 	if endpoint == "" {
 		return nil, fmt.Errorf("hub is enabled but no endpoint configured\n\nConfigure via: scion config set hub.endpoint <url>")
 	}

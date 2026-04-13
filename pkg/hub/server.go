@@ -530,6 +530,7 @@ type Server struct {
 	envSecretLog      *slog.Logger
 	templateLog       *slog.Logger
 	workspaceLog      *slog.Logger
+	maintenanceLog    *slog.Logger
 
 	// Cached rate limit info from the most recent GitHub App API call
 	githubAppRateLimit *githubapp.RateLimitInfo
@@ -559,6 +560,7 @@ func New(cfg ServerConfig, s store.Store) (*Server, error) {
 		envSecretLog:      logging.Subsystem("hub.env-secrets"),
 		templateLog:       logging.Subsystem("hub.templates"),
 		workspaceLog:      logging.Subsystem("hub.workspace"),
+		maintenanceLog:    logging.Subsystem("hub.maintenance"),
 	}
 
 	// Set secret backend from config so ensureSigningKey can use it.
