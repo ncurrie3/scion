@@ -210,6 +210,12 @@ func CheckHubAvailabilityForAgents(grovePath string, excludedAgents []string, sk
 		targetAgent = excludedAgents[0] // compatibility field for older internals
 	}
 
+	// Fix: If --hub flag was passed, ensure it's available to pkg/hubsync via environment variable.
+	// pkg/hubsync.EnsureHubReady checks IsHubContext which only checks env vars.
+	if hubEndpoint != "" {
+		os.Setenv("SCION_HUB_ENDPOINT", hubEndpoint)
+	}
+
 	opts := hubsync.EnsureHubReadyOptions{
 		AutoConfirm:    autoConfirm,
 		NoHub:          noHub,
