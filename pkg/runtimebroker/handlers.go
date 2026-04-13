@@ -17,7 +17,6 @@ package runtimebroker
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -2039,7 +2038,13 @@ func (s *Server) resolveManagerForOpts(opts api.StartOptions) agent.Manager {
 		if s.config.ForceRuntime == s.runtime.Name() {
 			return s.manager
 		}
-		slog.Warn("ForceRuntime does not match default runtime, falling back to settings resolution", "force", s.config.ForceRuntime, "default", s.runtime.Name())
+		s.auxiliaryRuntimesMu.RLock()
+		aux, ok := s.auxiliaryRuntimes[s.config.ForceRuntime]
+		s.auxiliaryRuntimesMu.RUnlock()
+		if ok {
+			return aux.Manager
+		}
+		s.agentLifecycleLog.Warn("ForceRuntime does not match default runtime, falling back to settings resolution", "force", s.config.ForceRuntime, "default", s.runtime.Name())
 	}
 
 	// Load settings to check if the profile/active-profile specifies a
