@@ -146,6 +146,8 @@ type EnsureHubReadyOptions struct {
 	NoHub bool
 	// SkipSync skips agent synchronization check.
 	SkipSync bool
+	// HubEndpoint overrides the Hub API endpoint URL.
+	HubEndpoint string
 	// TargetAgent is the agent being operated on. If set, this agent is excluded
 	// from sync requirements since the current operation will change its state.
 	// For delete: the agent won't be required to be registered on Hub first.
@@ -212,11 +214,12 @@ func EnsureHubReady(grovePath string, opts EnsureHubReadyOptions) (*HubContext, 
 	}
 
 	// Check if hub is explicitly enabled via settings OR if we're inside
-	// a hub-connected container (env vars like SCION_HUB_ENDPOINT are set).
+	// a hub-connected container (env vars like SCION_HUB_ENDPOINT are set)
+	// OR if a Hub endpoint was explicitly provided via flag.
 	// Inside containers, hub.enabled is not written to settings files, but
 	// the hub env vars signal that the Hub API should be used.
 	hubContext := config.IsHubContext()
-	if !settings.IsHubEnabled() && !hubContext {
+	if opts.HubEndpoint == "" && !settings.IsHubEnabled() && !hubContext {
 		return nil, nil
 	}
 
@@ -227,7 +230,10 @@ func EnsureHubReady(grovePath string, opts EnsureHubReadyOptions) (*HubContext, 
 	}
 
 	// Hub is enabled - from here on, any failure is an error (no silent fallback)
-	endpoint := getEndpoint(settings)
+	endpoint := opts.HubEndpoint
+	if endpoint == "" {
+		endpoint = getEndpoint(settings)
+	}
 	// In hub context, settings loading may not pick up the env var (e.g. if the
 	// grove path resolves to a synthetic or tmpfs directory without a settings file
 	// and koanf doesn't populate the pointer struct). Fall back to the env var.
